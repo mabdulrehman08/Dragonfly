@@ -91,6 +91,9 @@ class Engine:
                 self._safe(agents.run_verifier(float(lat), float(lon), self.world.tick, "wildfire"), agents.VERIFIER.name),
             )
         runs = [r for _, r in (intake, sentinel, verifier)]
+        for rec in self.world.activity:
+            if rec["run_id"] == verifier[1].run_id:
+                rec["report_id"] = report.id
         draft = intake[0] or IncidentDraft(
             report_id=report.id,
             lat=float(lat),

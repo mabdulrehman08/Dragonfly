@@ -70,6 +70,10 @@ def model_name() -> str:
 class AgentFailure(Exception):
     """The agent could not produce a valid result. The engine treats this like a failed tool (I5)."""
 
+    def __init__(self, message: str, run: AgentRun | None = None):
+        super().__init__(message)
+        self.run = run
+
 
 @dataclass(frozen=True)
 class AgentSpec:
@@ -180,7 +184,7 @@ async def run_agent(spec: AgentSpec, payload: dict[str, Any], world: World) -> t
         }
     )
     if out is None:
-        raise AgentFailure(f"{spec.name} failed: {note}")
+        raise AgentFailure(f"{spec.name} failed: {note}", run)
     return out, run, trace
 
 
@@ -664,6 +668,10 @@ async def run_verifier(lat: float, lon: float, tick: int, hazard: str) -> tuple[
         verdict = verdict.model_copy(
             update={"label": label, "confidence": conf if label != "corroborated" else max(conf, verdict.confidence)}
         )
+    for rec in reversed(world.activity):
+        if rec["run_id"] == run.run_id:
+            rec["label"] = verdict.label
+            break
     return verdict, run
 
 

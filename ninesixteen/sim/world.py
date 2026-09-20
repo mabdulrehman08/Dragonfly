@@ -165,8 +165,8 @@ class World:
                 id=f"R{self._report_seq:03d}",
                 at_tick=self.tick,
                 reporter_id=who["id"],
-                lat=who["lat"],
-                lon=who["lon"],
+                lat=r.get("lat", who["lat"]),  # a scenario may pin a report's location (the invariance test does)
+                lon=r.get("lon", who["lon"]),
                 for_whom=r.get("for", "self"),
                 other_lat=other["lat"] if other else None,
                 other_lon=other["lon"] if other else None,
