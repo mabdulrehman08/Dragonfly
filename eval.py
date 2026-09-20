@@ -20,6 +20,7 @@ import tempfile
 from pathlib import Path
 
 from ninesixteen import agents
+from ninesixteen.config import load_dotenv
 from ninesixteen.engine import Engine
 from ninesixteen.server import approve_incident
 from ninesixteen.sim.world import DATA, World, list_scenarios, load_scenario
@@ -134,6 +135,7 @@ def check(world: World) -> None:
 
 
 async def main() -> int:
+    load_dotenv()
     mode = agents.llm_mode()
     print(
         f"ninesixteen eval · llm={mode} · model={agents.model_name() if mode == 'claude' else 'mock'} · "

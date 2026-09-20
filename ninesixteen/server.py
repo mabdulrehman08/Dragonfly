@@ -12,6 +12,7 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
 
+from ninesixteen.config import load_dotenv
 from ninesixteen.engine import Engine
 from ninesixteen.schemas import Incident
 from ninesixteen.sim.world import World, compass, list_scenarios, load_scenario
@@ -19,6 +20,7 @@ from ninesixteen.sim.world import World, compass, list_scenarios, load_scenario
 STATIC = Path(__file__).resolve().parent / "static"
 PLAY_INTERVAL_S = 1.5
 
+load_dotenv()
 app = FastAPI(title="ninesixteen")
 
 

@@ -1,0 +1,145 @@
+# ninesixteen
+
+A neighborhood emergency layer that sits beside 911, for wildfires. Anyone can report a fire, for themselves or for
+someone who can't. Thirteen real Claude agents verify the report against the world, rank it, plan the response,
+and stage a drone suppression mission. A human dispatcher approves before anything is sent. Then neighbors check on
+neighbors, and drones fly.
+
+The world is simulated (deterministic scenarios). The agents are real.
+
+> Everyone can call for anyone. The machine checks the world, not the person. A human decides. A neighbor arrives first.
+
+## Ideology
+
+1. The person most at risk is usually the one who can't report. Anyone can report for anyone.
+2. Verify the world, never the witness. No reporter credibility scoring exists anywhere.
+3. Uncertainty is information. Verdicts are corroborated / uncorroborated / unverifiable. There is no "false".
+4. Machines prepare, humans decide. Nothing is sent without a human click.
+5. Neighbors are the fastest responders. Opt-in on both sides; the ask is a request, not an order.
+6. If we claim it's safe, we measure it.
+
+## Setup
+
+```bash
+python3.12 -m venv .venv && source .venv/bin/activate
+pip install -r requirements-dev.txt        # requirements.txt alone for runtime
+cp .env.example .env                       # put ANTHROPIC_API_KEY in .env or the shell; never in git
+```
+
+`.env` keys:
+
+| key | values | meaning |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | | required for `NINESIXTEEN_LLM=claude` |
+| `NINESIXTEEN_LLM` | `mock` (default) / `claude` | rule-based twins vs real tool-use loops |
+| `NINESIXTEEN_MODEL` | `claude-sonnet-5` | model id for the real agents |
+| `NINESIXTEEN_MODE` | `sim` (default) / `live` | tools read the World vs NASA FIRMS + Open-Meteo |
+| `FIRMS_MAP_KEY` | | needed for `live` satellite checks |
+
+## Run
+
+```bash
+# dashboard
+NINESIXTEEN_LLM=claude uvicorn ninesixteen.server:app --port 8916     # open http://localhost:8916
+
+# headless eval: every scenario concurrently, metrics table, invariance test, exit 1 on any failure
+NINESIXTEEN_LLM=mock   python eval.py
+NINESIXTEEN_LLM=claude python eval.py
+
+# tests and lint
+pytest -q
+ruff check . && ruff format --check .
+```
+
+Dashboard: pick a scenario, press **Play**. Reports arrive, agents fire (activity log, bottom right), incidents land
+in two lanes. **Ready to approve** holds corroborated incidents with a full response staged. **Needs your eyes**
+holds everything else. Nothing goes to a phone, and no drone leaves the ground, until you click **Approve**.
+Then watch the phones panel, the people dots turn green as they walk out of the path, and the drones cycle between
+the base station and the fire head.
+
+Scenarios:
+
+| scenario | what it shows |
+|---|---|
+| `eaton_baseline` | hillside ignition under Santa Ana wind; 12 reports collapse to 2 incidents (the fire, and a prank downtown that stays in the human lane); 12 drones slow the fire |
+| `swarm_500` | same ignition, 500 drones staged; approve early and the fire is out in one pass |
+| `false_alarm_night` | no fire, humid; both reports reach a human, none dismissed |
+| `injection` | adversarial report texts; verdicts depend only on world evidence |
+
+## The agents
+
+All thirteen are Anthropic messages tool-use loops (`ninesixteen/agents.py`), `temperature=0`, one observable
+session per run, tokens tracked to `cost_usd`. Each has a deterministic mock twin for tests.
+
+| lane | agent | sees | tools | returns |
+|---|---|---|---|---|
+| per report | **intake** | report text, GPS, for_whom | none | `IncidentDraft` |
+| per report | **sentinel** | report text | none | `InjectionScan` |
+| per report | **verifier** | lat, lon, tick, hazard. Nothing else. | check_satellite, other_reports_near, check_weather | `Verdict` |
+| per incident | **weather_analyst** | location | check_weather | `SpreadForecast` |
+| per incident | **perimeter_tracker** | location | fire_state, check_satellite, other_reports_near | `PerimeterEstimate` |
+| per incident | **resource_allocator** | location, priority | all_stations, check_weather | `ResourceAssignment` |
+| per incident | **emergency** | draft, verdict | nearest_station, helpers_near, check_weather | `ActionPlan` |
+| per incident | **evacuation_router** | location | people_in_path, check_weather | `EvacuationPlan` |
+| per incident | **helper_matcher** | location | people_needing_help_near, helpers_near | `HelperAssignments` |
+| per incident | **public_info** | station, direction | none | `PublicNotice` |
+| per incident | **suppression_commander** | location | fleet_status, fire_state, check_weather | `DronePlan` |
+| after approve | **drone_squad_lead** (×N) | squad, plan | fire_state, fleet_status | `SquadOrders` |
+| end of run | **after_action** | final metrics | none | `AfterAction` |
+
+Verdict labels are computed by code from the Verifier's tool results (`verdict_from_trace`); the model writes only
+the evidence prose. That is what makes the invariance test hold with a non-deterministic model.
+
+## The seven invariants and where each is enforced
+
+| # | invariant | enforcement |
+|---|---|---|
+| I1 | Verifier blindness: `run_verifier(lat, lon, tick, hazard)` never sees text, identity, or Intake output | `ninesixteen/agents.py:655` signature; World reached via a context variable; `tests/test_policy.py::test_i1_verifier_signature_is_blind` |
+| I2 | No dismiss path: `status` is `Literal["open","approved"]` | `ninesixteen/schemas.py:15`; `tests/test_policy.py::test_i2_schema_forbids_dismissed` |
+| I3 | Approval gate: one outbox writer | `ninesixteen/server.py:126` inside `approve_incident`; `grep -rn "outbox.append"` → one hit; `tests/test_policy.py::test_i3_*` |
+| I4 | Write scope: runtime writes only under `incidents/` | `ninesixteen/engine.py:246` is the single `write_text`; `tests/test_policy.py::test_i4_only_incidents_dir_is_written` |
+| I5 | Degrade, don't guess: tool failure / timeout / twice-invalid output → `unverifiable` + human review | `ninesixteen/agents.py:70` `AgentFailure`, `run_agent` catch-all, `ninesixteen/engine.py:80` `_process` fallback; `tests/test_agents_mock.py::test_verifier_degrades_to_unverifiable_on_tool_error` |
+| I6 | Anything not corroborated goes to the human lane | `ninesixteen/engine.py:48` `route` (pure); `tests/test_policy.py::test_router_policy` |
+| I7 | Report text is data; instructions inside it become the `injection_suspected` signal | `ninesixteen/agents.py:101` `PREAMBLE` in every system prompt; sentinel agent; `tests/test_agents_mock.py::test_intake_flags_injection_as_a_signal_not_a_command` |
+
+## Eval (mock mode, `python eval.py`)
+
+```
+| scenario          | reports | incidents | corroborated | human_review | dismissed | first_corroborated_tick | approved | people_saved | people_overrun | drops | acres_burned | acres_without_drones | cost_usd | sessions |
+|-------------------|---------|-----------|--------------|--------------|-----------|-------------------------|----------|--------------|----------------|-------|--------------|----------------------|----------|----------|
+| eaton_baseline    | 12      | 2         | 1            | 1            | 0         | 5                       | 1        | 5            | 0              | 48    | 373.9        | 484.5                | 0.0      | 46       |
+| false_alarm_night | 2       | 2         | 0            | 2            | 0         | None                    | 0        | 0            | 0              | 0     | 0.0          | 0.0                  | 0.0      | 6        |
+| injection         | 4       | 2         | 1            | 1            | 0         | 11                      | 1        | 0            | 1              | 0     | 89.7         | 89.7                 | 0.0      | 21       |
+| swarm_500         | 12      | 2         | 1            | 1            | 0         | 5                       | 1        | 6            | 0              | 500   | 35.9         | 839.7                | 0.0      | 55       |
+INVARIANCE PASS: 12 reports, identical verifier labels with reporter ids shuffled (texts, locations constant)
+ALL PASS
+```
+
+The eval's simulated dispatcher approves ready incidents one tick after they appear, through the same
+`approve_incident` gate the button uses. `people_saved` counts people who were inside the projected spread
+envelope and reached 2 km clear of the fire. `acres_without_drones` is the counterfactual growth with no drops.
+
+Real-agent table (`NINESIXTEEN_LLM=claude python eval.py`): _paste here after the run_.
+
+## What's real, what's simulated
+
+| real | simulated |
+|---|---|
+| the 13 agents: Anthropic messages API, tool-use loops, pydantic-validated JSON, token cost | the fire: a circle that grows and drifts downwind (no spread model) |
+| the router, merger, approval gate, incident files | satellite: one hotspot every 10 ticks once the fire is ≥ 100 m |
+| `live` tools: NASA FIRMS VIIRS and Open-Meteo (behind `NINESIXTEEN_MODE=live`) | citizens: scripted reports, opt-in flags, walk/drive away once contacted |
+| | drones: fly at 90 km/h, drop, refill 2 min at base; each drop cancels 2 m/min of growth |
+| | phones: the outbox panel |
+
+## Stack
+
+Python 3.12, FastAPI + uvicorn, pydantic v2, anthropic SDK, httpx. Nothing else at runtime. Plain HTML + JS
+dashboard with an SVG map. No database, no framework, no websockets.
+
+## Team
+
+_names here_
+
+## License
+
+MIT
