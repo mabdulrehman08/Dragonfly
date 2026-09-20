@@ -13,7 +13,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
 
 from ninesixteen.config import load_dotenv
-from ninesixteen.engine import Engine
+from ninesixteen.engine import INCIDENTS_DIR, Engine
 from ninesixteen.schemas import Incident
 from ninesixteen.sim.world import World, compass, list_scenarios, load_scenario
 
@@ -31,6 +31,8 @@ class Session:
         self.reset(scenario)
 
     def reset(self, scenario: str) -> None:
+        for stale in INCIDENTS_DIR.glob("INC-*.md"):  # a fresh world gets a fresh incidents/ folder (still inside I4's scope)
+            stale.unlink()
         self.world = World(load_scenario(scenario))
         self.engine = Engine(self.world)
         self.playing = False
