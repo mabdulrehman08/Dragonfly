@@ -3,7 +3,7 @@
 On each tick: every new report gets Intake, Sentinel and Verifier run CONCURRENTLY (bounded by a semaphore).
 The Verifier is handed a location and a tick only (I1). The router is a pure function of the verdict label.
 The merger is the single writer of `world.incidents`. Corroborated incidents get the response pipeline
-(seven more agents). Nothing here touches `world.outbox` (I3) and nothing here writes outside `incidents/` (I4).
+(seven more agents). Nothing here can send a message (I3) and nothing here writes outside `incidents/` (I4).
 """
 
 from __future__ import annotations
