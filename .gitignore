@@ -6,3 +6,4 @@ venv/
 incidents/*.md
 .pytest_cache/
 .venv/
+.xo/
