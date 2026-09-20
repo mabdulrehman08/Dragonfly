@@ -151,6 +151,20 @@ the agent process has no file or shell tools at all; the only writer is `Engine.
 | | drones: fly at 90 km/h, drop, refill 2 min at base; each drop cancels 2 m/min of growth |
 | | phones: the outbox panel |
 
+## Running it in XO Cloud (app.xo.builders)
+
+The agents show up in a cloud Space only if they run on that Space's machine. Create a project from the **Claude Code**
+template, open **Setup → Models → Connect Claude** (or paste an API key), then **Launch → code-server** and in its
+terminal:
+
+```bash
+git clone https://github.com/mabdulrehman08/Dragonfly.git dragonfly && cd dragonfly
+bash cloud.sh
+```
+
+Forward port 8916 from the code-server Ports panel to open the dashboard (all its API calls are relative, so the
+proxy path works). Every agent run is a Claude Code session on that machine, so the Space's Sessions view shows them.
+
 ## Stack
 
 Python 3.12, FastAPI + uvicorn, pydantic v2, anthropic SDK, httpx. Nothing else at runtime. Plain HTML + JS

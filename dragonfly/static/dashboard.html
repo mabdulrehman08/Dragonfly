@@ -283,11 +283,11 @@
     drawMap(d); drawMetrics(d.metrics, d); drawQueue(d); drawPhones(d); drawLogs(d);
   }
 
-  async function poll() { try { render(await api("/state")); } catch (e) { console.error(e); } }
-  window.approve = async (id) => { await api("/approve/" + id, "POST"); poll(); };
-  $("#play").onclick = async () => { await api("/play", "POST"); poll(); };
-  $("#step").onclick = async () => { await api("/step", "POST"); poll(); };
-  $("#reset").onclick = async () => { await api("/reset/" + $("#scenario").value, "POST"); poll(); };
+  async function poll() { try { render(await api("state")); } catch (e) { console.error(e); } }
+  window.approve = async (id) => { await api("approve/" + id, "POST"); poll(); };
+  $("#play").onclick = async () => { await api("play", "POST"); poll(); };
+  $("#step").onclick = async () => { await api("step", "POST"); poll(); };
+  $("#reset").onclick = async () => { await api("reset/" + $("#scenario").value, "POST"); poll(); };
   $("#scenario").onchange = () => $("#reset").onclick();
   poll(); setInterval(poll, 1000);
 </script>
