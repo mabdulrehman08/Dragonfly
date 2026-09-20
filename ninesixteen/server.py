@@ -14,6 +14,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 
 from ninesixteen.config import load_dotenv
 from ninesixteen.engine import INCIDENTS_DIR, Engine
+from ninesixteen.mcp import mcp_app
 from ninesixteen.schemas import Incident
 from ninesixteen.sim.world import World, compass, list_scenarios, load_scenario
 
@@ -22,6 +23,7 @@ PLAY_INTERVAL_S = 1.5
 
 load_dotenv()
 app = FastAPI(title="ninesixteen")
+app.mount("/mcp", mcp_app)
 
 
 class Session:

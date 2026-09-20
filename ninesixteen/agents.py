@@ -23,6 +23,7 @@ import uuid
 from collections.abc import Callable
 from contextvars import ContextVar
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, ValidationError
@@ -56,11 +57,17 @@ PRICE_PER_MTOK_IN = 3.0
 PRICE_PER_MTOK_OUT = 15.0
 MAX_TOOL_TURNS = 10
 CALL_TIMEOUT_S = 60.0
+CLI_TIMEOUT_S = 180.0
+REPO_ROOT = Path(__file__).resolve().parent.parent
 _client: Any = None
 
 
 def llm_mode() -> str:
     return os.environ.get("NINESIXTEEN_LLM", "mock")
+
+
+def mcp_url() -> str:
+    return os.environ.get("NINESIXTEEN_MCP_URL", "http://127.0.0.1:8916/mcp")
 
 
 def model_name() -> str:
@@ -139,9 +146,16 @@ async def run_agent(spec: AgentSpec, payload: dict[str, Any], world: World) -> t
     run_id = f"{spec.name}-{uuid.uuid4().hex[:8]}"
     t0 = time.perf_counter()
     trace = Trace(calls=[])
+    cost: float | None = None
+    session_id = run_id
     try:
         if llm_mode() == "claude":
             out, tok_in, tok_out = await asyncio.wait_for(_run_claude(spec, payload, world, trace, run_id), CALL_TIMEOUT_S)
+            model = model_name()
+        elif llm_mode() == "claude-code":
+            out, tok_in, tok_out, cost, session_id = await asyncio.wait_for(
+                _run_claude_code(spec, payload, world, trace, run_id), CLI_TIMEOUT_S
+            )
             model = model_name()
         else:
             out, tok_in, tok_out, model = spec.mock(payload, world), 0, 0, "mock"
@@ -152,7 +166,7 @@ async def run_agent(spec: AgentSpec, payload: dict[str, Any], world: World) -> t
             None,
             0,
             0,
-            model_name() if llm_mode() == "claude" else "mock",
+            model_name() if llm_mode() != "mock" else "mock",
             False,
             f"{type(e).__name__}: {e}"[:200],
         )
@@ -161,12 +175,12 @@ async def run_agent(spec: AgentSpec, payload: dict[str, Any], world: World) -> t
     ms = int((time.perf_counter() - t0) * 1000)
     run = AgentRun(
         agent=spec.name,
-        run_id=run_id,
+        run_id=session_id,
         tick=world.tick,
         model=model,
         input_tokens=tok_in,
         output_tokens=tok_out,
-        cost_usd=round(tok_in / 1e6 * PRICE_PER_MTOK_IN + tok_out / 1e6 * PRICE_PER_MTOK_OUT, 5),
+        cost_usd=round(cost if cost is not None else tok_in / 1e6 * PRICE_PER_MTOK_IN + tok_out / 1e6 * PRICE_PER_MTOK_OUT, 5),
         ok=ok,
         ms=ms,
         note=note,
@@ -175,7 +189,7 @@ async def run_agent(spec: AgentSpec, payload: dict[str, Any], world: World) -> t
         {
             "tick": world.tick,
             "agent": spec.name,
-            "run_id": run_id,
+            "run_id": session_id,
             "ok": ok,
             "ms": ms,
             "cost_usd": run.cost_usd,
@@ -233,6 +247,77 @@ async def _run_claude(spec: AgentSpec, payload: dict[str, Any], world: World, tr
             retried = True
             messages.append({"role": "user", "content": f"That was not valid. Error: {e}. Reply with ONLY the JSON object."})
     raise AgentFailure("tool loop did not finish")
+
+
+async def _run_claude_code(
+    spec: AgentSpec, payload: dict[str, Any], world: World, trace: Trace, run_id: str
+) -> tuple[BaseModel, int, int, float, str]:
+    """One headless Claude Code session per agent run, so XO Space can observe it like any other session.
+
+    Built-in tools are disabled (`--tools ""`, `--restricted`); the only tools are ours, served over MCP and
+    scoped to this run. Report text is passed as data in the prompt, exactly as in the API path."""
+    from ninesixteen.mcp import RUNS, Registration
+
+    reg = Registration(world=world, tool_names=spec.tools)
+    RUNS[run_id] = reg
+    mcp_cfg = json.dumps({"mcpServers": {"ninesixteen": {"type": "http", "url": f"{mcp_url()}/{run_id}"}}})
+    allowed = ",".join(f"mcp__ninesixteen__{t}" for t in spec.tools)
+    system = _system(spec.system, spec.output)
+    if spec.tools:
+        system += "\nYour tools are served by the `ninesixteen` MCP server. Call them; then answer with the JSON only."
+    argv = [
+        "claude",
+        "-p",
+        json.dumps(payload),
+        "--output-format",
+        "json",
+        "--model",
+        model_name(),
+        "--max-turns",
+        str(MAX_TOOL_TURNS + 2),
+        "--system-prompt",
+        system,
+        "--tools",
+        "",
+        "--restricted",
+        "--strict-mcp-config",
+        "--mcp-config",
+        mcp_cfg,
+        "--permission-mode",
+        "dontAsk",
+    ]
+    if allowed:
+        argv += ["--allowedTools", allowed]
+    env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY" or os.environ.get("NINESIXTEEN_CLI_USE_KEY")}
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            *argv, cwd=REPO_ROOT, env=env, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+        )
+        stdout, stderr = await proc.communicate()
+    finally:
+        trace.calls.extend(reg.calls)
+        trace.tool_failed = reg.tool_failed
+        RUNS.pop(run_id, None)
+    if proc.returncode != 0 and not stdout.strip():
+        raise AgentFailure(f"claude exited {proc.returncode}: {stderr.decode(errors='replace')[-200:]}")
+    try:
+        res = json.loads(stdout.decode())
+    except ValueError as e:
+        raise AgentFailure(f"claude output not JSON: {stdout[-200:]!r}") from e
+    if res.get("is_error"):
+        raise AgentFailure(f"claude error: {str(res.get('result'))[:200]}")
+    usage = res.get("usage") or {}
+    tok_in = (
+        int(usage.get("input_tokens", 0)) + int(usage.get("cache_read_input_tokens", 0)) + int(usage.get("cache_creation_input_tokens", 0))
+    )
+    tok_out = int(usage.get("output_tokens", 0))
+    cost = float(res.get("total_cost_usd") or 0.0)
+    session_id = str(res.get("session_id") or run_id)
+    text = str(res.get("result") or "")
+    try:
+        return spec.output.model_validate(_extract_json(text)), tok_in, tok_out, cost, session_id
+    except (ValidationError, ValueError) as e:
+        raise AgentFailure(f"invalid output: {e}"[:200]) from e
 
 
 def _mock_trace(spec: AgentSpec, payload: dict[str, Any], world: World, trace: Trace) -> None:
@@ -657,7 +742,7 @@ async def run_verifier(lat: float, lon: float, tick: int, hazard: str) -> tuple[
     world = WORLD.get()
     out, run, trace = await run_agent(VERIFIER, {"lat": lat, "lon": lon, "tick": tick, "hazard": hazard}, world)
     verdict: Verdict = out  # type: ignore[assignment]
-    if llm_mode() == "claude":
+    if llm_mode() != "mock":
         for name in ("check_satellite", "other_reports_near"):
             if trace.result(name) is None and not trace.tool_failed:
                 try:

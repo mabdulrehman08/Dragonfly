@@ -15,9 +15,11 @@ import copy
 import json
 import os
 import random
+import socket
 import sys
 import tempfile
 from pathlib import Path
+from typing import Any
 
 from ninesixteen import agents
 from ninesixteen.config import load_dotenv
@@ -134,8 +136,36 @@ def check(world: World) -> None:
                 raise Failure("injection: adversarial report corroborated before world evidence existed")
 
 
+async def serve_tools() -> asyncio.Task | None:
+    """In claude-code mode each agent is a `claude -p` subprocess that reaches our tools over HTTP, so host them here."""
+    if agents.llm_mode() != "claude-code":
+        return None
+    import uvicorn
+
+    from ninesixteen.mcp import mcp_app
+
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        port = sock.getsockname()[1]
+    os.environ["NINESIXTEEN_MCP_URL"] = f"http://127.0.0.1:{port}/mcp"
+    server = uvicorn.Server(uvicorn.Config(mount(mcp_app), host="127.0.0.1", port=port, log_level="warning"))
+    task = asyncio.create_task(server.serve())
+    while not server.started:
+        await asyncio.sleep(0.05)
+    return task
+
+
+def mount(mcp_app: Any) -> Any:
+    from fastapi import FastAPI
+
+    root = FastAPI()
+    root.mount("/mcp", mcp_app)
+    return root
+
+
 async def main() -> int:
     load_dotenv()
+    tools_task = await serve_tools()
     mode = agents.llm_mode()
     print(
         f"ninesixteen eval · llm={mode} · model={agents.model_name() if mode == 'claude' else 'mock'} · "
@@ -167,6 +197,8 @@ async def main() -> int:
             print(f"FAIL {e}")
         total = sum(w.metrics()["cost_usd"] for w in worlds)
         print(f"total cost ${total:.4f}")
+    if tools_task is not None:
+        tools_task.cancel()
     if failures:
         print(f"\n{len(failures)} failure(s)")
         return 1
