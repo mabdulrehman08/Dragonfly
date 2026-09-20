@@ -1,0 +1,22 @@
+[
+  {"id": "c01", "name": "Maria",  "lat": 34.1912, "lon": -118.1124, "opt_in": "can_help"},
+  {"id": "c02", "name": "Raj",    "lat": 34.1918, "lon": -118.1116, "opt_in": "can_help"},
+  {"id": "c03", "name": "Aisha",  "lat": 34.1921, "lon": -118.1110, "opt_in": "may_need_help"},
+  {"id": "c04", "name": "Tom",    "lat": 34.1890, "lon": -118.1150, "opt_in": "none"},
+  {"id": "c05", "name": "Linh",   "lat": 34.1905, "lon": -118.1090, "opt_in": "none"},
+  {"id": "c06", "name": "Diego",  "lat": 34.1930, "lon": -118.1140, "opt_in": "can_help"},
+  {"id": "c07", "name": "Sam",    "lat": 34.1880, "lon": -118.1100, "opt_in": "none"},
+  {"id": "c08", "name": "Noor",   "lat": 34.1940, "lon": -118.1105, "opt_in": "may_need_help"},
+  {"id": "c09", "name": "Ben",    "lat": 34.1875, "lon": -118.1180, "opt_in": "none"},
+  {"id": "c10", "name": "Grace",  "lat": 34.1900, "lon": -118.1200, "opt_in": "can_help"},
+  {"id": "c11", "name": "Omar",   "lat": 34.1950, "lon": -118.1090, "opt_in": "none"},
+  {"id": "c12", "name": "Yuki",   "lat": 34.1860, "lon": -118.1130, "opt_in": "none"},
+  {"id": "c13", "name": "Priya",  "lat": 34.1895, "lon": -118.1085, "opt_in": "none"},
+  {"id": "c14", "name": "Luis",   "lat": 34.1935, "lon": -118.1170, "opt_in": "none"},
+  {"id": "c15", "name": "Eve",    "lat": 34.1870, "lon": -118.1210, "opt_in": "none"},
+  {"id": "c16", "name": "Kofi",   "lat": 34.1910, "lon": -118.1060, "opt_in": "none"},
+  {"id": "c17", "name": "Hana",   "lat": 34.1885, "lon": -118.1070, "opt_in": "none"},
+  {"id": "c18", "name": "Ivan",   "lat": 34.1960, "lon": -118.1150, "opt_in": "none"},
+  {"id": "c19", "name": "Zoe",    "lat": 34.1480, "lon": -118.1440, "opt_in": "none"},
+  {"id": "c20", "name": "Ray",    "lat": 34.1465, "lon": -118.1420, "opt_in": "none"}
+]
