@@ -41,6 +41,12 @@
   all pass, invariance holds. The `claude` API backend is kept and works with a key.
 - **A bad API key in `claude` mode** was verified to degrade to `unverifiable` + human lane without crashing (I5).
 
+- **XO Space project attribution** (`ninesixteen/xo.py`, opt-in `NINESIXTEEN_XO_REGISTER=1`): the Space only lists a
+  session under a project if a row exists in its own index at `~/.quirq/projects/<pid>/sessions/sessionslist.d/`. We write
+  that row (same format as the Space's Claude adapter) before each `claude -p` with a pre-allocated `--session-id`, and
+  refresh it with real token usage after. This is Quirq's state dir, not the project tree, so I4 is untouched; it is a
+  separate module so the I4 test on engine/agents still counts one write call.
+
 ## v2 (not built)
 - autopilot / auto-approve (breaks I3 and ideology 4; if ever built it must be a separate, opt-in, audited gate)
 - MCP server exposing the tools (thin wrapper over `tools.TOOLS`)

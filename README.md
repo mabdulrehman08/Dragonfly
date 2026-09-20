@@ -33,6 +33,7 @@ cp .env.example .env                       # put ANTHROPIC_API_KEY in .env or th
 | `ANTHROPIC_API_KEY` | | required only for `NINESIXTEEN_LLM=claude`; `claude-code` mode uses the CLI login |
 | `NINESIXTEEN_LLM` | `mock` (default) / `claude` / `claude-code` | rule-based twins · Anthropic API tool-use loops · one headless Claude Code session per run (what XO Space observes; uses your `claude` login, no key) |
 | `NINESIXTEEN_MCP_URL` | `http://127.0.0.1:8916/mcp` | where `claude-code` runs reach the tools (eval hosts its own) |
+| `NINESIXTEEN_XO_REGISTER` | `1` | also register each run in the local XO Space project index so it shows under the project, not just in the telemetry tab |
 | `NINESIXTEEN_MODEL` | `claude-sonnet-5` | model id for the real agents |
 | `NINESIXTEEN_MODE` | `sim` (default) / `live` | tools read the World vs NASA FIRMS + Open-Meteo |
 | `FIRMS_MAP_KEY` | | needed for `live` satellite checks |
@@ -132,10 +133,10 @@ every agent run is exactly such a session, started with `cwd` at the repo root s
 
 ```bash
 curl -fsSL https://quirq.ai/install | sh          # local Space, UI at http://localhost:5002/space/
-NINESIXTEEN_LLM=claude-code uvicorn ninesixteen.server:app --port 8916
+NINESIXTEEN_LLM=claude-code NINESIXTEEN_XO_REGISTER=1 uvicorn ninesixteen.server:app --port 8916
 ```
 
-Press Play. In the Space's Sessions tab you get one session per agent run (intake, sentinel, verifier, ... , drone
+Press Play. Under the project (and in the Sessions & Telemetry tab) you get one session per agent run (intake, sentinel, verifier, ... , drone
 squad leads) with tokens, cost and the MCP tool calls; in Files you see `incidents/INC-xxxx.md` change on every update.
 Write scope for the agents is `incidents/` only (I4): each `claude -p` runs with `--tools ""` and `--restricted`, so
 the agent process has no file or shell tools at all; the only writer is `Engine.write_incident`.

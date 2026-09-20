@@ -28,7 +28,7 @@ from typing import Any
 
 from pydantic import BaseModel, ValidationError
 
-from ninesixteen import tools
+from ninesixteen import tools, xo
 from ninesixteen.schemas import (
     ActionPlan,
     AfterAction,
@@ -265,10 +265,15 @@ async def _run_claude_code(
     system = _system(spec.system, spec.output)
     if spec.tools:
         system += "\nYour tools are served by the `ninesixteen` MCP server. Call them; then answer with the JSON only."
+    native_sid = str(uuid.uuid4())
+    if xo.enabled():
+        xo.register(native_sid)
     argv = [
         "claude",
         "-p",
         json.dumps(payload),
+        "--session-id",
+        native_sid,
         "--output-format",
         "json",
         "--model",
@@ -312,7 +317,12 @@ async def _run_claude_code(
     )
     tok_out = int(usage.get("output_tokens", 0))
     cost = float(res.get("total_cost_usd") or 0.0)
-    session_id = str(res.get("session_id") or run_id)
+    session_id = str(res.get("session_id") or native_sid)
+    if xo.enabled():
+        xo.register(
+            session_id,
+            {k: int(usage.get(k, 0)) for k in ("input_tokens", "output_tokens", "cache_creation_input_tokens", "cache_read_input_tokens")},
+        )
     text = str(res.get("result") or "")
     try:
         return spec.output.model_validate(_extract_json(text)), tok_in, tok_out, cost, session_id
