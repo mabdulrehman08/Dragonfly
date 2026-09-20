@@ -44,6 +44,7 @@ COLS = (
     "acres_without_drones",
     "cost_usd",
     "sessions",
+    "failed_runs",
 )
 
 

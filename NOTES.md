@@ -34,8 +34,12 @@
 - **Dev deps split** into `requirements-dev.txt` (ruff, pytest) so the runtime list stays at five packages.
 - **`.env` loader** is 12 lines in `config.py` rather than a dependency.
 - **Live mode is code-complete but untested**: no FIRMS key in this environment.
-- **Real-agent eval not yet run**: no `ANTHROPIC_API_KEY` in the build environment. Mock eval passes; a bad key was
-  verified to degrade to `unverifiable` + human lane without crashing (I5).
+- **Third backend, `claude-code`, added at 15:15** after finding XO Space only observes Claude Code / Codex / Cursor
+  session logs, not raw API calls. Each agent run is `claude -p` with `--tools "" --restricted --strict-mcp-config`,
+  tools served by `ninesixteen/mcp.py` (hand-written JSON-RPC, no `mcp` package). The run id is in the MCP URL, so the
+  endpoint returns only that agent's allow-list. Sessions use the user's CLI login; no API key needed. Real eval: $0.95,
+  all pass, invariance holds. The `claude` API backend is kept and works with a key.
+- **A bad API key in `claude` mode** was verified to degrade to `unverifiable` + human lane without crashing (I5).
 
 ## v2 (not built)
 - autopilot / auto-approve (breaks I3 and ideology 4; if ever built it must be a separate, opt-in, audited gate)

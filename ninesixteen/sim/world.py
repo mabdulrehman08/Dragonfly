@@ -440,4 +440,5 @@ class World:
             "acres_without_drones": round(cf, 1),
             "cost_usd": round(sum(i.cost_usd for i in inc), 4),
             "sessions": sum(i.sessions for i in inc),
+            "failed_runs": sum(1 for a in self.activity if not a["ok"]),
         }

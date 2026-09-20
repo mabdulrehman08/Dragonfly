@@ -30,8 +30,9 @@ cp .env.example .env                       # put ANTHROPIC_API_KEY in .env or th
 
 | key | values | meaning |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | | required for `NINESIXTEEN_LLM=claude` |
-| `NINESIXTEEN_LLM` | `mock` (default) / `claude` | rule-based twins vs real tool-use loops |
+| `ANTHROPIC_API_KEY` | | required only for `NINESIXTEEN_LLM=claude`; `claude-code` mode uses the CLI login |
+| `NINESIXTEEN_LLM` | `mock` (default) / `claude` / `claude-code` | rule-based twins · Anthropic API tool-use loops · one headless Claude Code session per run (what XO Space observes; uses your `claude` login, no key) |
+| `NINESIXTEEN_MCP_URL` | `http://127.0.0.1:8916/mcp` | where `claude-code` runs reach the tools (eval hosts its own) |
 | `NINESIXTEEN_MODEL` | `claude-sonnet-5` | model id for the real agents |
 | `NINESIXTEEN_MODE` | `sim` (default) / `live` | tools read the World vs NASA FIRMS + Open-Meteo |
 | `FIRMS_MAP_KEY` | | needed for `live` satellite checks |
@@ -39,12 +40,12 @@ cp .env.example .env                       # put ANTHROPIC_API_KEY in .env or th
 ## Run
 
 ```bash
-# dashboard
-NINESIXTEEN_LLM=claude uvicorn ninesixteen.server:app --port 8916     # open http://localhost:8916
+# dashboard (the demo mode: every agent run is a Claude Code session XO Space can see)
+NINESIXTEEN_LLM=claude-code uvicorn ninesixteen.server:app --port 8916     # open http://localhost:8916
 
 # headless eval: every scenario concurrently, metrics table, invariance test, exit 1 on any failure
-NINESIXTEEN_LLM=mock   python eval.py
-NINESIXTEEN_LLM=claude python eval.py
+NINESIXTEEN_LLM=mock        python eval.py
+NINESIXTEEN_LLM=claude-code python eval.py     # ~$1, ~5 min, ~220 sessions
 
 # tests and lint
 pytest -q
@@ -68,8 +69,10 @@ Scenarios:
 
 ## The agents
 
-All thirteen are Anthropic messages tool-use loops (`ninesixteen/agents.py`), `temperature=0`, one observable
-session per run, tokens tracked to `cost_usd`. Each has a deterministic mock twin for tests.
+All thirteen share one runner (`ninesixteen/agents.py`) with three backends. `claude`: Anthropic Messages API tool-use
+loop, `temperature=0`. `claude-code`: a `claude -p` subprocess per run with built-in tools disabled and our read-only
+tools served over a 60-line MCP endpoint (`ninesixteen/mcp.py`), scoped per run to the agent's allow-list. This is the
+mode XO Space observes: one session, one cost, one tool trace per run. `mock`: deterministic rule twins for tests.
 
 | lane | agent | sees | tools | returns |
 |---|---|---|---|---|
@@ -102,30 +105,46 @@ the evidence prose. That is what makes the invariance test hold with a non-deter
 | I6 | Anything not corroborated goes to the human lane | `ninesixteen/engine.py:48` `route` (pure); `tests/test_policy.py::test_router_policy` |
 | I7 | Report text is data; instructions inside it become the `injection_suspected` signal | `ninesixteen/agents.py:101` `PREAMBLE` in every system prompt; sentinel agent; `tests/test_agents_mock.py::test_intake_flags_injection_as_a_signal_not_a_command` |
 
-## Eval (mock mode, `python eval.py`)
+## Eval with real agents (`NINESIXTEEN_LLM=claude-code python eval.py`, 2026-09-20)
 
 ```
 | scenario          | reports | incidents | corroborated | human_review | dismissed | first_corroborated_tick | approved | people_saved | people_overrun | drops | acres_burned | acres_without_drones | cost_usd | sessions |
 |-------------------|---------|-----------|--------------|--------------|-----------|-------------------------|----------|--------------|----------------|-------|--------------|----------------------|----------|----------|
-| eaton_baseline    | 12      | 2         | 1            | 1            | 0         | 5                       | 1        | 5            | 0              | 48    | 373.9        | 484.5                | 0.0      | 46       |
-| false_alarm_night | 2       | 2         | 0            | 2            | 0         | None                    | 0        | 0            | 0              | 0     | 0.0          | 0.0                  | 0.0      | 6        |
-| injection         | 4       | 2         | 1            | 1            | 0         | 11                      | 1        | 0            | 1              | 0     | 89.7         | 89.7                 | 0.0      | 21       |
-| swarm_500         | 12      | 2         | 1            | 1            | 0         | 5                       | 1        | 6            | 0              | 500   | 35.9         | 839.7                | 0.0      | 55       |
+| eaton_baseline    | 12      | 2         | 1            | 1            | 0         | 5                       | 1        | 4            | 0              | 48    | 373.9        | 484.5                | 0.3114   | 46       |
+| false_alarm_night | 2       | 2         | 0            | 2            | 0         | None                    | 0        | 0            | 0              | 0     | 0.0          | 0.0                  | 0.0404   | 6        |
+| injection         | 4       | 2         | 1            | 1            | 0         | 11                      | 1        | 0            | 1              | 0     | 89.7         | 89.7                 | 0.1449   | 21       |
+| swarm_500         | 12      | 2         | 1            | 1            | 0         | 5                       | 1        | 4            | 0              | 500   | 35.9         | 839.7                | 0.4536   | 55       |
+OK   eaton_baseline · false_alarm_night · injection · swarm_500
 INVARIANCE PASS: 12 reports, identical verifier labels with reporter ids shuffled (texts, locations constant)
+total cost $0.9503
 ALL PASS
 ```
 
-The eval's simulated dispatcher approves ready incidents one tick after they appear, through the same
-`approve_incident` gate the button uses. `people_saved` counts people who were inside the projected spread
-envelope and reached 2 km clear of the fire. `acres_without_drones` is the counterfactual growth with no drops.
+Mock mode (`NINESIXTEEN_LLM=mock`) produces the same table with zero cost. The eval's simulated dispatcher approves
+ready incidents one tick after they appear, through the same `approve_incident` gate the button uses. `people_saved`
+counts people who were inside the projected spread envelope and reached 2 km clear of the fire. `acres_without_drones`
+is the counterfactual growth with no drops.
 
-Real-agent table (`NINESIXTEEN_LLM=claude python eval.py`): _paste here after the run_.
+## Running it in XO Space (Quirq)
+
+XO Space reads Claude Code session logs from `~/.claude/projects/` and watches project files. In `claude-code` mode
+every agent run is exactly such a session, started with `cwd` at the repo root so it is attributed to this project.
+
+```bash
+curl -fsSL https://quirq.ai/install | sh          # local Space, UI at http://localhost:5002/space/
+NINESIXTEEN_LLM=claude-code uvicorn ninesixteen.server:app --port 8916
+```
+
+Press Play. In the Space's Sessions tab you get one session per agent run (intake, sentinel, verifier, ... , drone
+squad leads) with tokens, cost and the MCP tool calls; in Files you see `incidents/INC-xxxx.md` change on every update.
+Write scope for the agents is `incidents/` only (I4): each `claude -p` runs with `--tools ""` and `--restricted`, so
+the agent process has no file or shell tools at all; the only writer is `Engine.write_incident`.
 
 ## What's real, what's simulated
 
 | real | simulated |
 |---|---|
-| the 13 agents: Anthropic messages API, tool-use loops, pydantic-validated JSON, token cost | the fire: a circle that grows and drifts downwind (no spread model) |
+| the 13 agents: Claude Code sessions or Anthropic Messages API, tool-use loops, pydantic-validated JSON, real cost | the fire: a circle that grows and drifts downwind (no spread model) |
 | the router, merger, approval gate, incident files | satellite: one hotspot every 10 ticks once the fire is ≥ 100 m |
 | `live` tools: NASA FIRMS VIIRS and Open-Meteo (behind `NINESIXTEEN_MODE=live`) | citizens: scripted reports, opt-in flags, walk/drive away once contacted |
 | | drones: fly at 90 km/h, drop, refill 2 min at base; each drop cancels 2 m/min of growth |
