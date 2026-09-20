@@ -3,10 +3,30 @@
   "description": "No fire. Humid night. One anxious report about a neighbor's fire pit, one prank. Every report must reach a human; nothing may be dismissed.",
   "ticks": 15,
   "fire": null,
-  "weather": {"wind_deg": 90, "wind_kmh": 6, "rh": 78, "temp_c": 16},
+  "weather": {
+    "wind_deg": 90,
+    "wind_kmh": 6,
+    "rh": 78,
+    "temp_c": 16
+  },
   "satellite_every_ticks": 10,
+  "drones": {
+    "count": 20,
+    "base_station": 1,
+    "suppression_m_per_drop": 3.0
+  },
   "reports": [
-    {"at_tick": 2, "from": "c09", "for": "self", "text": "I smell smoke, I think the house behind me is on fire"},
-    {"at_tick": 7, "from": "c20", "for": "self", "text": "lol the whole mountain is on fire send helicopters"}
+    {
+      "at_tick": 2,
+      "from": "c09",
+      "for": "self",
+      "text": "I smell smoke, I think the house behind me is on fire"
+    },
+    {
+      "at_tick": 7,
+      "from": "c20",
+      "for": "self",
+      "text": "lol the whole mountain is on fire send helicopters"
+    }
   ]
 }

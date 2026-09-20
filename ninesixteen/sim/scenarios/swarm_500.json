@@ -1,7 +1,7 @@
 {
-  "name": "eaton_baseline",
-  "description": "A hillside ignition above Eaton Canyon under Santa Ana wind. Real reports, duplicates, a hedge, a panic, a prompt injection, and a prank across town.",
-  "ticks": 30,
+  "name": "swarm_500",
+  "description": "Same Eaton ignition, but a 500-drone suppression fleet is staged at Station 11. Shows what scale does to acres burned and people overrun.",
+  "ticks": 40,
   "fire": {
     "lat": 34.1965,
     "lon": -118.108,
@@ -14,7 +14,7 @@
   },
   "satellite_every_ticks": 10,
   "drones": {
-    "count": 60,
+    "count": 500,
     "base_station": 1,
     "suppression_m_per_drop": 3.0
   },
