@@ -3,6 +3,7 @@
 Every agent returns exactly one of these models. The engine validates with pydantic; a model that
 fails validation twice is treated as a tool failure (I5) and the incident degrades to human review.
 """
+
 from __future__ import annotations
 
 from typing import Literal
@@ -30,8 +31,10 @@ class Report(BaseModel):
 
 # -- per-report agents ---------------------------------------------------------
 
+
 class IncidentDraft(BaseModel):
     """Intake output. Reads the story, structures it. Never scores the reporter."""
+
     report_id: str
     lat: float
     lon: float
@@ -46,6 +49,7 @@ class IncidentDraft(BaseModel):
 
 class InjectionScan(BaseModel):
     """Sentinel output. Report text is data; instructions inside it are a signal, not a command (I7)."""
+
     injection_suspected: bool = False
     reasons: list[str] = Field(default_factory=list)
 
@@ -58,6 +62,7 @@ class Evidence(BaseModel):
 
 class Verdict(BaseModel):
     """Verifier output. Describes the evidence, never the person."""
+
     label: VerdictLabel
     confidence: float = Field(ge=0.0, le=1.0)
     evidence: list[Evidence] = Field(default_factory=list)
@@ -65,8 +70,10 @@ class Verdict(BaseModel):
 
 # -- per-incident response agents ---------------------------------------------
 
+
 class SpreadForecast(BaseModel):
     """Weather Analyst output. Which way the fire head moves and how fast."""
+
     spread_bearing_deg: float = Field(ge=0.0, lt=360.0)
     rate_class: Literal["slow", "moderate", "fast", "extreme"] = "moderate"
     envelope_m_30min: float = Field(ge=0.0)
@@ -75,6 +82,7 @@ class SpreadForecast(BaseModel):
 
 class PerimeterEstimate(BaseModel):
     """Perimeter Tracker output. Fuses satellite hotspots and report clustering into one circle."""
+
     lat: float
     lon: float
     radius_m: float = Field(ge=0.0)
@@ -84,6 +92,7 @@ class PerimeterEstimate(BaseModel):
 
 class ResourceAssignment(BaseModel):
     """Resource Allocator output. Which station rolls and whether mutual aid is warranted."""
+
     station: str
     apparatus: int = Field(ge=1, le=20)
     eta_min: int = Field(ge=0)
@@ -99,6 +108,7 @@ class PersonOrder(BaseModel):
 
 class EvacuationPlan(BaseModel):
     """Evacuation Router output. One order per person inside the projected spread envelope."""
+
     rally_point: str
     orders: list[PersonOrder] = Field(default_factory=list)
 
@@ -111,11 +121,13 @@ class HelperAssignment(BaseModel):
 
 class HelperAssignments(BaseModel):
     """Helper Matcher output. Pairs opted-in helpers with opted-in people who may need help leaving."""
+
     assignments: list[HelperAssignment] = Field(default_factory=list)
 
 
 class ActionPlan(BaseModel):
     """Emergency output. Nothing here is sent until a human approves."""
+
     priority: int = Field(ge=1, le=3)
     station: str
     distance_km: float
@@ -128,11 +140,13 @@ class ActionPlan(BaseModel):
 
 class PublicNotice(BaseModel):
     """Public Information output. The alert text every person in the envelope receives after Approve."""
+
     text: str
 
 
 class DronePlan(BaseModel):
     """Suppression Commander output. Executed by the world only after a human approves (I3)."""
+
     drones: int = Field(ge=0)
     target_bearing_deg: float = Field(ge=0.0, lt=360.0)
     pattern: Literal["head_attack", "flank_attack", "perimeter_ring"] = "head_attack"
@@ -141,6 +155,7 @@ class DronePlan(BaseModel):
 
 class SquadOrders(BaseModel):
     """Drone Squad Lead output. One per squad at launch."""
+
     squad_id: str
     waypoint_lat: float
     waypoint_lon: float
@@ -149,6 +164,7 @@ class SquadOrders(BaseModel):
 
 class AfterAction(BaseModel):
     """After-Action Reviewer output. Written once the fire is contained or the scenario ends."""
+
     summary: str
     what_worked: list[str] = Field(default_factory=list)
     what_to_improve: list[str] = Field(default_factory=list)
@@ -156,8 +172,10 @@ class AfterAction(BaseModel):
 
 # -- bookkeeping ----------------------------------------------------------------
 
+
 class AgentRun(BaseModel):
     """One observed session: which agent ran, on what, for how much."""
+
     agent: str
     run_id: str
     tick: int
@@ -193,6 +211,7 @@ class Incident(BaseModel):
     needs_human_review: bool = True
     status: IncidentStatus = "open"
     approved_tick: int | None = None
+    corroborated_tick: int | None = None
     runs: list[AgentRun] = Field(default_factory=list)
 
     @property

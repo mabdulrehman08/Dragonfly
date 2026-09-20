@@ -14,9 +14,9 @@
   },
   "satellite_every_ticks": 10,
   "drones": {
-    "count": 60,
+    "count": 12,
     "base_station": 1,
-    "suppression_m_per_drop": 3.0
+    "suppression_m_per_drop": 2.0
   },
   "reports": [
     {

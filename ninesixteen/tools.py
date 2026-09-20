@@ -4,6 +4,7 @@ The agents never know which one they're talking to. Every tool is read-only: not
 World. The Verifier's tools take a location and a time, never a person (I1). Any data-source failure
 raises ToolError, which the engine turns into `unverifiable` rather than a guess (I5).
 """
+
 from __future__ import annotations
 
 import os
@@ -27,18 +28,23 @@ def check_satellite(world: World, lat: float, lon: float) -> dict:
     if mode() == "live":
         return _firms_live(lat, lon)
     hs = world.hotspots_near(lat, lon)
-    return {"source": "NASA FIRMS (simulated VIIRS 375 m)", "hotspots_within_5km": len(hs),
-            "nearest": hs[0] if hs else None}
+    return {"source": "NASA FIRMS (simulated VIIRS 375 m)", "hotspots_within_5km": len(hs), "nearest": hs[0] if hs else None}
 
 
 def check_weather(world: World, lat: float, lon: float) -> dict:
     if mode() == "live":
         return _open_meteo_live(lat, lon)
     w = world.weather
-    return {"source": "Open-Meteo (simulated)", "wind_kmh": w["wind_kmh"], "wind_from_deg": w["wind_deg"],
-            "spread_toward_deg": (w["wind_deg"] + 180) % 360, "spread_toward": compass((w["wind_deg"] + 180) % 360),
-            "relative_humidity_pct": w["rh"], "temp_c": w["temp_c"],
-            "fire_weather": _fire_weather(w["rh"], w["wind_kmh"])}
+    return {
+        "source": "Open-Meteo (simulated)",
+        "wind_kmh": w["wind_kmh"],
+        "wind_from_deg": w["wind_deg"],
+        "spread_toward_deg": (w["wind_deg"] + 180) % 360,
+        "spread_toward": compass((w["wind_deg"] + 180) % 360),
+        "relative_humidity_pct": w["rh"],
+        "temp_c": w["temp_c"],
+        "fire_weather": _fire_weather(w["rh"], w["wind_kmh"]),
+    }
 
 
 def other_reports_near(world: World, lat: float, lon: float, exclude_report_id: str | None = None) -> dict:
@@ -63,8 +69,11 @@ def people_needing_help_near(world: World, lat: float, lon: float) -> dict:
 
 
 def people_in_path(world: World) -> dict:
-    return {"source": "projected spread envelope", "spread_toward_deg": world.spread_bearing() if world.fire else None,
-            "people": world.people_in_path()}
+    return {
+        "source": "projected spread envelope",
+        "spread_toward_deg": world.spread_bearing() if world.fire else None,
+        "people": world.people_in_path(),
+    }
 
 
 def fleet_status(world: World) -> dict:
@@ -76,9 +85,14 @@ def fire_state(world: World) -> dict:
     if not world.fire:
         return {"source": "satellite fusion", "fire": None}
     f = world.fire
-    return {"source": "satellite fusion", "center": {"lat": f["lat"], "lon": f["lon"]}, "radius_m": round(f["radius_m"]),
-            "growth_m_per_min": f["growth_m_per_tick"], "spread_toward_deg": world.spread_bearing(),
-            "contained": world.contained_tick is not None}
+    return {
+        "source": "satellite fusion",
+        "center": {"lat": f["lat"], "lon": f["lon"]},
+        "radius_m": round(f["radius_m"]),
+        "growth_m_per_min": f["growth_m_per_tick"],
+        "spread_toward_deg": world.spread_bearing(),
+        "contained": world.contained_tick is not None,
+    }
 
 
 def _fire_weather(rh: float, wind: float) -> str:
@@ -86,6 +100,7 @@ def _fire_weather(rh: float, wind: float) -> str:
 
 
 # -- live adapters (off by default; kept so the same code runs on real feeds) --
+
 
 def _firms_live(lat: float, lon: float) -> dict:
     key = os.environ.get("FIRMS_MAP_KEY")
@@ -103,30 +118,40 @@ def _firms_live(lat: float, lon: float) -> dict:
 
 
 def _open_meteo_live(lat: float, lon: float) -> dict:
-    url = ("https://api.open-meteo.com/v1/forecast"
-           f"?latitude={lat}&longitude={lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m")
+    url = (
+        "https://api.open-meteo.com/v1/forecast"
+        f"?latitude={lat}&longitude={lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m"
+    )
     try:
         cur = httpx.get(url, timeout=10).json()["current"]
     except (httpx.HTTPError, KeyError, ValueError) as e:
         raise ToolError(f"Open-Meteo unavailable: {e}") from e
     rh, wind, wd = cur["relative_humidity_2m"], cur["wind_speed_10m"], cur["wind_direction_10m"]
-    return {"source": "Open-Meteo", "wind_kmh": wind, "wind_from_deg": wd,
-            "spread_toward_deg": (wd + 180) % 360, "spread_toward": compass((wd + 180) % 360),
-            "relative_humidity_pct": rh, "temp_c": cur["temperature_2m"], "fire_weather": _fire_weather(rh, wind)}
+    return {
+        "source": "Open-Meteo",
+        "wind_kmh": wind,
+        "wind_from_deg": wd,
+        "spread_toward_deg": (wd + 180) % 360,
+        "spread_toward": compass((wd + 180) % 360),
+        "relative_humidity_pct": rh,
+        "temp_c": cur["temperature_2m"],
+        "fire_weather": _fire_weather(rh, wind),
+    }
 
 
 # -- registry: name -> (callable, JSON schema for the model) --------------------
 
-_LOC = {"type": "object", "properties": {"lat": {"type": "number"}, "lon": {"type": "number"}},
-        "required": ["lat", "lon"]}
+_LOC = {"type": "object", "properties": {"lat": {"type": "number"}, "lon": {"type": "number"}}, "required": ["lat", "lon"]}
 _NONE = {"type": "object", "properties": {}}
 
 TOOLS: dict[str, tuple[Callable[..., dict], str, dict[str, Any]]] = {
     "check_satellite": (check_satellite, "Count NASA FIRMS thermal hotspots within 5 km of a point and return the nearest one.", _LOC),
     "check_weather": (check_weather, "Current wind, humidity, temperature and fire-weather class at a point.", _LOC),
-    "other_reports_near": (other_reports_near, "Count independent reports within 2 km and 30 min of a point.",
-                           {"type": "object", "properties": {**_LOC["properties"], "exclude_report_id": {"type": "string"}},
-                            "required": ["lat", "lon"]}),
+    "other_reports_near": (
+        other_reports_near,
+        "Count independent reports within 2 km and 30 min of a point.",
+        {"type": "object", "properties": {**_LOC["properties"], "exclude_report_id": {"type": "string"}}, "required": ["lat", "lon"]},
+    ),
     "nearest_station": (nearest_station, "Nearest fire station, distance and ETA.", _LOC),
     "all_stations": (all_stations, "Every fire station ranked by distance with ETA.", _LOC),
     "helpers_near": (helpers_near, "Opted-in neighbors who said they can help, within 500 m.", _LOC),

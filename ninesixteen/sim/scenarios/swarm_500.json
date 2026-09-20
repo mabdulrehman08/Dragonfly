@@ -16,7 +16,7 @@
   "drones": {
     "count": 500,
     "base_station": 1,
-    "suppression_m_per_drop": 3.0
+    "suppression_m_per_drop": 2.0
   },
   "reports": [
     {

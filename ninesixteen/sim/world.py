@@ -7,6 +7,7 @@ an incident, citizens who were told to leave walk or drive away from the fire, a
 Everything an agent can learn about the world comes through `ninesixteen.tools`, which read this object.
 The World is the only mutable state in the system.
 """
+
 from __future__ import annotations
 
 import json
@@ -21,7 +22,7 @@ SCENARIOS = Path(__file__).resolve().parent / "scenarios"
 EARTH_M = 6_371_000.0
 SQM_PER_ACRE = 4046.86
 
-DRONE_SPEED_M_PER_TICK = 1500.0   # ~90 km/h
+DRONE_SPEED_M_PER_TICK = 1500.0  # ~90 km/h
 DRONE_REFILL_TICKS = 2
 DROP_RADIUS_M = 200.0
 PERSON_SPEED_M_PER_TICK = {"drive": 600.0, "walk": 80.0}
@@ -77,9 +78,7 @@ class World:
         self.scenario = scenario
         self.tick = 0
         self.fire: dict | None = dict(scenario["fire"]) if scenario.get("fire") else None
-        self.weather: dict = scenario.get("weather") or {
-            k: scenario["fire"][k] for k in ("wind_deg", "wind_kmh", "rh", "temp_c")
-        }
+        self.weather: dict = scenario.get("weather") or {k: scenario["fire"][k] for k in ("wind_deg", "wind_kmh", "rh", "temp_c")}
         self.citizens: list[dict] = json.loads((DATA / "people.json").read_text())
         self.stations: list[dict] = json.loads((DATA / "stations.json").read_text())
         for c in self.citizens:
@@ -94,6 +93,7 @@ class World:
         self._report_seq = 0
         # -- fire bookkeeping --
         self.counterfactual_radius_m = self.fire["radius_m"] if self.fire else 0.0
+        self.max_radius_m = self.counterfactual_radius_m
         self.contained_tick: int | None = None
         self.extinguished_tick: int | None = None
         self.drops = 0
@@ -136,6 +136,7 @@ class World:
             self.contained_tick = self.tick
             self.log.append(f"t{self.tick:02d} fire CONTAINED: {drops_now} drops this minute outpace growth")
         f["radius_m"] = max(0.0, f["radius_m"] + effective)
+        self.max_radius_m = max(self.max_radius_m, f["radius_m"])
         if effective > 0:
             f["lat"], f["lon"] = offset(f["lat"], f["lon"], effective * 0.4, self.spread_bearing())
         if f["radius_m"] <= 10.0 and self.contained_tick is not None:
@@ -147,8 +148,9 @@ class World:
         """Satellites don't see a fire instantly. Drop a detection every N ticks once it's big enough to see."""
         every = self.scenario.get("satellite_every_ticks", 10)
         if self.fire and self.tick % every == 0 and self.fire["radius_m"] >= 100:
-            self.hotspots.append({"lat": self.fire["lat"], "lon": self.fire["lon"], "tick": self.tick,
-                                  "confidence": "high", "source": "SIM-VIIRS"})
+            self.hotspots.append(
+                {"lat": self.fire["lat"], "lon": self.fire["lon"], "tick": self.tick, "confidence": "high", "source": "SIM-VIIRS"}
+            )
             self.log.append(f"t{self.tick:02d} satellite: hotspot detected")
 
     def _fire_scripted_reports(self) -> list[Report]:
@@ -160,9 +162,14 @@ class World:
             other = self._by_id.get(r.get("other", "")) if r.get("for") == "other" else None
             self._report_seq += 1
             rep = Report(
-                id=f"R{self._report_seq:03d}", at_tick=self.tick, reporter_id=who["id"],
-                lat=who["lat"], lon=who["lon"], for_whom=r.get("for", "self"),
-                other_lat=other["lat"] if other else None, other_lon=other["lon"] if other else None,
+                id=f"R{self._report_seq:03d}",
+                at_tick=self.tick,
+                reporter_id=who["id"],
+                lat=who["lat"],
+                lon=who["lon"],
+                for_whom=r.get("for", "self"),
+                other_lat=other["lat"] if other else None,
+                other_lon=other["lon"] if other else None,
                 text=r["text"],
             )
             self.reports.append(rep)
@@ -211,8 +218,10 @@ class World:
                 away = bearing_deg(f["lat"], f["lon"], c["lat"], c["lon"])
                 speed = PERSON_SPEED_M_PER_TICK["walk" if c["opt_in"] == "may_need_help" else c["mode"]]
                 c["lat"], c["lon"] = offset(c["lat"], c["lon"], speed, away)
-                if not self.in_danger(c["lat"], c["lon"]) and \
-                        dist_m(f["lat"], f["lon"], c["lat"], c["lon"]) >= f["radius_m"] + SAFE_MARGIN_M:
+                if (
+                    not self.in_danger(c["lat"], c["lon"])
+                    and dist_m(f["lat"], f["lon"], c["lat"], c["lon"]) >= f["radius_m"] + SAFE_MARGIN_M
+                ):
                     c["state"] = "evacuated"
                     self.log.append(f"t{self.tick:02d} {c['name']} reached safety")
 
@@ -281,8 +290,9 @@ class World:
                     d["state"], d["dropped_tick"] = "returning", self.tick
                     self.drops += 1
                 else:
-                    d["lat"], d["lon"] = offset(d["lat"], d["lon"], min(dist, DRONE_SPEED_M_PER_TICK),
-                                                bearing_deg(d["lat"], d["lon"], tl, tn))
+                    d["lat"], d["lon"] = offset(
+                        d["lat"], d["lon"], min(dist, DRONE_SPEED_M_PER_TICK), bearing_deg(d["lat"], d["lon"], tl, tn)
+                    )
             elif st == "returning":
                 bl, bn = self.drone_base["lat"], self.drone_base["lon"]
                 dist = dist_m(d["lat"], d["lon"], bl, bn)
@@ -290,8 +300,9 @@ class World:
                     d["lat"], d["lon"] = bl, bn
                     d["state"], d["refill_left"] = ("base", 0) if fire_out else ("refill", DRONE_REFILL_TICKS)
                 else:
-                    d["lat"], d["lon"] = offset(d["lat"], d["lon"], min(dist, DRONE_SPEED_M_PER_TICK),
-                                                bearing_deg(d["lat"], d["lon"], bl, bn))
+                    d["lat"], d["lon"] = offset(
+                        d["lat"], d["lon"], min(dist, DRONE_SPEED_M_PER_TICK), bearing_deg(d["lat"], d["lon"], bl, bn)
+                    )
             elif st == "refill":
                 d["refill_left"] -= 1
                 if d["refill_left"] <= 0:
@@ -306,12 +317,11 @@ class World:
                 out.append({**h, "distance_km": round(d / 1000, 1), "minutes_ago": self.tick - h["tick"]})
         return sorted(out, key=lambda h: h["distance_km"])
 
-    def reports_near(self, lat: float, lon: float, radius_m: float = 2000, minutes: int = 30,
-                     exclude_id: str | None = None) -> int:
+    def reports_near(self, lat: float, lon: float, radius_m: float = 2000, minutes: int = 30, exclude_id: str | None = None) -> int:
         return sum(
-            1 for r in self.reports
-            if r.id != exclude_id and self.tick - r.at_tick <= minutes
-            and dist_m(lat, lon, r.lat, r.lon) <= radius_m
+            1
+            for r in self.reports
+            if r.id != exclude_id and self.tick - r.at_tick <= minutes and dist_m(lat, lon, r.lat, r.lon) <= radius_m
         )
 
     def nearest_station(self, lat: float, lon: float) -> dict:
@@ -330,22 +340,30 @@ class World:
         return [
             {"id": c["id"], "name": c["name"], "distance_m": round(dist_m(lat, lon, c["lat"], c["lon"]))}
             for c in self.citizens
-            if c["opt_in"] == "can_help" and c["state"] not in ("overrun",)
-            and dist_m(lat, lon, c["lat"], c["lon"]) <= radius_m
+            if c["opt_in"] == "can_help" and c["state"] not in ("overrun",) and dist_m(lat, lon, c["lat"], c["lon"]) <= radius_m
         ]
 
     def people_in_path(self) -> list[dict]:
         return [
-            {"id": c["id"], "name": c["name"], "lat": c["lat"], "lon": c["lon"], "opt_in": c["opt_in"],
-             "state": c["state"], "bearing_from_fire": round(bearing_deg(self.fire["lat"], self.fire["lon"], c["lat"], c["lon"]))}
-            for c in self.citizens if c["state"] in ("in_path", "contacted") and self.fire
+            {
+                "id": c["id"],
+                "name": c["name"],
+                "lat": c["lat"],
+                "lon": c["lon"],
+                "opt_in": c["opt_in"],
+                "state": c["state"],
+                "bearing_from_fire": round(bearing_deg(self.fire["lat"], self.fire["lon"], c["lat"], c["lon"])),
+            }
+            for c in self.citizens
+            if c["state"] in ("in_path", "contacted") and self.fire
         ]
 
     def people_needing_help_near(self, lat: float, lon: float, radius_m: float = 3000) -> list[dict]:
         return [
             {"id": c["id"], "name": c["name"], "distance_m": round(dist_m(lat, lon, c["lat"], c["lon"])), "state": c["state"]}
             for c in self.citizens
-            if c["opt_in"] == "may_need_help" and c["state"] not in ("evacuated", "overrun")
+            if c["opt_in"] == "may_need_help"
+            and c["state"] not in ("evacuated", "overrun")
             and dist_m(lat, lon, c["lat"], c["lon"]) <= radius_m
         ]
 
@@ -354,9 +372,14 @@ class World:
         for d in self.drones:
             counts[d["state"]] = counts.get(d["state"], 0) + 1
         base_km = dist_m(self.drone_base["lat"], self.drone_base["lon"], self.fire["lat"], self.fire["lon"]) / 1000 if self.fire else None
-        return {"total": len(self.drones), "by_state": counts, "base": self.drone_base["name"],
-                "base_to_fire_km": round(base_km, 1) if base_km is not None else None,
-                "suppression_m_per_drop": self.suppression_m_per_drop, "drops_so_far": self.drops}
+        return {
+            "total": len(self.drones),
+            "by_state": counts,
+            "base": self.drone_base["name"],
+            "base_to_fire_km": round(base_km, 1) if base_km is not None else None,
+            "suppression_m_per_drop": self.suppression_m_per_drop,
+            "drops_so_far": self.drops,
+        }
 
     def citizen(self, cid: str) -> dict:
         return self._by_id[cid]
@@ -365,15 +388,24 @@ class World:
     def snapshot(self) -> dict:
         reported = {r.reporter_id for r in self.reports}
         return {
-            "scenario": self.scenario["name"], "tick": self.tick, "ticks": self.scenario.get("ticks", 30),
-            "fire": self.fire, "weather": self.weather, "spread_bearing": self.spread_bearing() if self.fire else None,
+            "scenario": self.scenario["name"],
+            "tick": self.tick,
+            "ticks": self.scenario.get("ticks", 30),
+            "fire": self.fire,
+            "weather": self.weather,
+            "spread_bearing": self.spread_bearing() if self.fire else None,
             "envelope_m": self.envelope_m(),
             "citizens": [{**c, "reported": c["id"] in reported} for c in self.citizens],
-            "stations": self.stations, "hotspots": self.hotspots,
-            "drones": self.drones[:600], "drone_base": self.drone_base, "mission": self.mission.model_dump() if self.mission else None,
+            "stations": self.stations,
+            "hotspots": self.hotspots,
+            "drones": self.drones[:600],
+            "drone_base": self.drone_base,
+            "mission": self.mission.model_dump() if self.mission else None,
             "reports": [r.model_dump() for r in self.reports],
             "incidents": [self.incident_dump(i) for i in self.incidents],
-            "outbox": self.outbox, "log": self.log[-60:], "activity": self.activity[-80:],
+            "outbox": self.outbox,
+            "log": self.log[-60:],
+            "activity": self.activity[-80:],
             "metrics": self.metrics(),
         }
 
@@ -385,10 +417,10 @@ class World:
 
     def metrics(self) -> dict:
         inc = self.incidents
-        first = next((i.updated_tick for i in inc if i.verdict.label == "corroborated"), None)
+        first = min((i.corroborated_tick for i in inc if i.corroborated_tick is not None), default=None)
         states = [c["state"] for c in self.citizens]
-        acres = math.pi * self.fire["radius_m"] ** 2 / SQM_PER_ACRE if self.fire else 0.0
-        cf = math.pi * self.counterfactual_radius_m ** 2 / SQM_PER_ACRE if self.fire else 0.0
+        acres = math.pi * self.max_radius_m**2 / SQM_PER_ACRE if self.fire else 0.0
+        cf = math.pi * self.counterfactual_radius_m**2 / SQM_PER_ACRE if self.fire else 0.0
         return {
             "reports": len(self.reports),
             "incidents": len(inc),
@@ -397,7 +429,7 @@ class World:
             "approved": sum(1 for i in inc if i.status == "approved"),
             "dismissed": 0,  # no code path can dismiss; kept explicit so the dashboard can show it
             "first_corroborated_tick": first,
-            "people_at_risk": sum(1 for s in states if s in ("in_path", "contacted", "evacuating")),
+            "people_at_risk": sum(1 for s in states if s in ("in_path", "contacted", "evacuating")) if self.fire else 0,
             "people_saved": states.count("evacuated"),
             "people_overrun": states.count("overrun"),
             "drones_active": sum(1 for d in self.drones if d["state"] != "base"),
