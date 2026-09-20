@@ -5,9 +5,16 @@
 # Then open the forwarded port 8916 from the code-server Ports panel.
 set -Eeuo pipefail
 cd "$(dirname "$0")"
-PY=$(command -v python3.12 || command -v python3)
-[ -d .venv ] || "$PY" -m venv .venv
-.venv/bin/pip install -q -r requirements.txt
+
+# The pinned pydantic needs Python 3.12 (cloud images ship newer). uv fetches a managed 3.12 without root.
+if [ ! -x .venv/bin/python ] || ! .venv/bin/python -c 'import sys; assert sys.version_info[:2] == (3, 12)' 2>/dev/null; then
+    rm -rf .venv
+    command -v uv >/dev/null || { curl -LsSf https://astral.sh/uv/install.sh | sh; export PATH="$HOME/.local/bin:$PATH"; }
+    uv venv --python 3.12 .venv
+fi
+export PATH="$HOME/.local/bin:$PATH"
+uv pip install --quiet --python .venv/bin/python -r requirements.txt
+
 command -v claude >/dev/null || { echo "claude CLI not found: connect Claude in Setup → Models, or npm i -g @anthropic-ai/claude-code"; exit 1; }
 claude -p 'reply with the word ok' --max-turns 1 --output-format json >/dev/null 2>&1 || echo "warning: claude CLI is not authenticated in this shell (Setup → Models → Connect Claude, or run: claude login)"
 export DRAGONFLY_LLM=${DRAGONFLY_LLM:-claude-code}
