@@ -271,7 +271,7 @@ async def _run_claude_code(
     argv = [
         "claude",
         "-p",
-        json.dumps(payload),
+        f"[{spec.name}] " + json.dumps(payload),  # role first, so observers list the session by its role
         "--session-id",
         native_sid,
         "--output-format",
