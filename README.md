@@ -97,13 +97,13 @@ the evidence prose. That is what makes the invariance test hold with a non-deter
 
 | # | invariant | enforcement |
 |---|---|---|
-| I1 | Verifier blindness: `run_verifier(lat, lon, tick, hazard)` never sees text, identity, or Intake output | `ninesixteen/agents.py:655` signature; World reached via a context variable; `tests/test_policy.py::test_i1_verifier_signature_is_blind` |
+| I1 | Verifier blindness: `run_verifier(lat, lon, tick, hazard)` never sees text, identity, or Intake output | `ninesixteen/agents.py:740` signature; World reached via a context variable; `tests/test_policy.py::test_i1_verifier_signature_is_blind` |
 | I2 | No dismiss path: `status` is `Literal["open","approved"]` | `ninesixteen/schemas.py:15`; `tests/test_policy.py::test_i2_schema_forbids_dismissed` |
-| I3 | Approval gate: one outbox writer | `ninesixteen/server.py:126` inside `approve_incident`; `grep -rn "outbox.append"` → one hit; `tests/test_policy.py::test_i3_*` |
+| I3 | Approval gate: one outbox writer | `ninesixteen/server.py:130` inside `approve_incident`; `grep -rn "outbox.append"` → one hit; `tests/test_policy.py::test_i3_*` |
 | I4 | Write scope: runtime writes only under `incidents/` | `ninesixteen/engine.py:246` is the single `write_text`; `tests/test_policy.py::test_i4_only_incidents_dir_is_written` |
-| I5 | Degrade, don't guess: tool failure / timeout / twice-invalid output → `unverifiable` + human review | `ninesixteen/agents.py:70` `AgentFailure`, `run_agent` catch-all, `ninesixteen/engine.py:80` `_process` fallback; `tests/test_agents_mock.py::test_verifier_degrades_to_unverifiable_on_tool_error` |
+| I5 | Degrade, don't guess: tool failure / timeout / twice-invalid output → `unverifiable` + human review | `ninesixteen/agents.py:77` `AgentFailure`, `run_agent` catch-all, `ninesixteen/engine.py:80` `_process` fallback; `tests/test_agents_mock.py::test_verifier_degrades_to_unverifiable_on_tool_error` |
 | I6 | Anything not corroborated goes to the human lane | `ninesixteen/engine.py:48` `route` (pure); `tests/test_policy.py::test_router_policy` |
-| I7 | Report text is data; instructions inside it become the `injection_suspected` signal | `ninesixteen/agents.py:101` `PREAMBLE` in every system prompt; sentinel agent; `tests/test_agents_mock.py::test_intake_flags_injection_as_a_signal_not_a_command` |
+| I7 | Report text is data; instructions inside it become the `injection_suspected` signal | `ninesixteen/agents.py:108` `PREAMBLE` in every system prompt; sentinel agent; `tests/test_agents_mock.py::test_intake_flags_injection_as_a_signal_not_a_command` |
 
 ## Eval with real agents (`NINESIXTEEN_LLM=claude-code python eval.py`, 2026-09-20)
 
