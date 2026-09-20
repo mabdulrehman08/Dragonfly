@@ -13,11 +13,11 @@ from typing import Any
 
 import httpx
 
-from ninesixteen.sim.world import World, compass
+from dragonfly.sim.world import World, compass
 
 
 def mode() -> str:
-    return os.environ.get("NINESIXTEEN_MODE", "sim")
+    return os.environ.get("DRAGONFLY_MODE", "sim")
 
 
 class ToolError(Exception):

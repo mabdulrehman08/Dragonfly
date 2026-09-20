@@ -1,7 +1,7 @@
 """Headless evaluation. Runs every scenario concurrently, prints a metrics table, then proves the invariants.
 
-    NINESIXTEEN_LLM=mock   python eval.py     # deterministic, no key
-    NINESIXTEEN_LLM=claude python eval.py     # real agents, real cost
+    DRAGONFLY_LLM=mock   python eval.py     # deterministic, no key
+    DRAGONFLY_LLM=claude python eval.py     # real agents, real cost
 
 Exit status is non-zero if any assertion fails. The invariance test is the heart of it: the Verifier
 must give the same label per report when reporter identities are shuffled and the texts held constant,
@@ -21,11 +21,11 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from ninesixteen import agents
-from ninesixteen.config import load_dotenv
-from ninesixteen.engine import Engine
-from ninesixteen.server import approve_incident
-from ninesixteen.sim.world import DATA, World, list_scenarios, load_scenario
+from dragonfly import agents
+from dragonfly.config import load_dotenv
+from dragonfly.engine import Engine
+from dragonfly.server import approve_incident
+from dragonfly.sim.world import DATA, World, list_scenarios, load_scenario
 
 DISPATCHER_DELAY = 1  # simulated human: approves one tick after an incident becomes ready
 
@@ -143,12 +143,12 @@ async def serve_tools() -> asyncio.Task | None:
         return None
     import uvicorn
 
-    from ninesixteen.mcp import mcp_app
+    from dragonfly.mcp import mcp_app
 
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
         port = sock.getsockname()[1]
-    os.environ["NINESIXTEEN_MCP_URL"] = f"http://127.0.0.1:{port}/mcp"
+    os.environ["DRAGONFLY_MCP_URL"] = f"http://127.0.0.1:{port}/mcp"
     server = uvicorn.Server(uvicorn.Config(mount(mcp_app), host="127.0.0.1", port=port, log_level="warning"))
     task = asyncio.create_task(server.serve())
     while not server.started:
@@ -169,10 +169,10 @@ async def main() -> int:
     tools_task = await serve_tools()
     mode = agents.llm_mode()
     print(
-        f"ninesixteen eval · llm={mode} · model={agents.model_name() if mode == 'claude' else 'mock'} · "
-        f"tools={os.environ.get('NINESIXTEEN_MODE', 'sim')}"
+        f"dragonfly eval · llm={mode} · model={agents.model_name() if mode == 'claude' else 'mock'} · "
+        f"tools={os.environ.get('DRAGONFLY_MODE', 'sim')}"
     )
-    with tempfile.TemporaryDirectory(prefix="ninesixteen-eval-") as tmp:
+    with tempfile.TemporaryDirectory(prefix="dragonfly-eval-") as tmp:
         out = Path(tmp)
         names = list_scenarios()
         worlds = await asyncio.gather(*(run_scenario(load_scenario(n), out / n) for n in names))

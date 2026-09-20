@@ -14,8 +14,8 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from ninesixteen import agents
-from ninesixteen.schemas import (
+from dragonfly import agents
+from dragonfly.schemas import (
     ActionPlan,
     AfterAction,
     AgentRun,
@@ -34,7 +34,7 @@ from ninesixteen.schemas import (
     SquadOrders,
     Verdict,
 )
-from ninesixteen.sim.world import World, compass, dist_m
+from dragonfly.sim.world import World, compass, dist_m
 
 MERGE_RADIUS_M = 2000.0
 MAX_CONCURRENCY = 8

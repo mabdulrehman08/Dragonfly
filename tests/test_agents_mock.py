@@ -4,15 +4,15 @@ import asyncio
 
 import pytest
 
-from ninesixteen import agents
-from ninesixteen.engine import Engine
-from ninesixteen.schemas import Report
-from ninesixteen.sim.world import World, load_scenario
+from dragonfly import agents
+from dragonfly.engine import Engine
+from dragonfly.schemas import Report
+from dragonfly.sim.world import World, load_scenario
 
 
 @pytest.fixture(autouse=True)
 def mock_mode(monkeypatch):
-    monkeypatch.setenv("NINESIXTEEN_LLM", "mock")
+    monkeypatch.setenv("DRAGONFLY_LLM", "mock")
 
 
 def _world(name="eaton_baseline", ticks=0):
@@ -79,7 +79,7 @@ def test_verifier_degrades_to_unverifiable_on_tool_error(monkeypatch):
 
 def test_engine_collapses_reports_and_keeps_prank_in_human_lane():
     w = World(load_scenario("eaton_baseline"))
-    e = Engine(w, incidents_dir=__import__("pathlib").Path("/tmp/claude-1000/ninesixteen-test-incidents"))
+    e = Engine(w, incidents_dir=__import__("pathlib").Path("/tmp/claude-1000/dragonfly-test-incidents"))
     asyncio.run(e.run_to_end())
     assert len(w.incidents) == 2
     eaton, prank = w.incidents

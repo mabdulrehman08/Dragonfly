@@ -1,6 +1,6 @@
 """A minimal MCP server (Streamable HTTP, JSON-RPC 2.0) that exposes the read-only tools to headless Claude Code runs.
 
-Why: XO Space observes Claude Code sessions, not raw API calls. With `NINESIXTEEN_LLM=claude-code` every agent run is
+Why: XO Space observes Claude Code sessions, not raw API calls. With `DRAGONFLY_LLM=claude-code` every agent run is
 a `claude -p` subprocess whose only tools are the ones served here. The URL names the run, and the run names the agent,
 so `tools/list` returns exactly that agent's allow-list and `tools/call` refuses anything else (I1 stays structural).
 No new dependency: FastAPI already speaks JSON.
@@ -15,8 +15,8 @@ from typing import Any
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse, Response
 
-from ninesixteen import tools
-from ninesixteen.sim.world import World
+from dragonfly import tools
+from dragonfly.sim.world import World
 
 PROTOCOL = "2025-03-26"
 
@@ -33,7 +33,7 @@ class Registration:
 
 RUNS: dict[str, Registration] = {}
 
-mcp_app = FastAPI(title="ninesixteen tools (MCP)")
+mcp_app = FastAPI(title="dragonfly tools (MCP)")
 
 
 def _ok(req_id: Any, result: dict[str, Any]) -> JSONResponse:
@@ -52,7 +52,7 @@ async def rpc(run_id: str, body: dict[str, Any]) -> Response:
         return _err(req_id, -32001, "unknown run")
     if method == "initialize":
         return _ok(
-            req_id, {"protocolVersion": PROTOCOL, "capabilities": {"tools": {}}, "serverInfo": {"name": "ninesixteen", "version": "1.0"}}
+            req_id, {"protocolVersion": PROTOCOL, "capabilities": {"tools": {}}, "serverInfo": {"name": "dragonfly", "version": "1.0"}}
         )
     if method in ("notifications/initialized", "notifications/cancelled"):
         return Response(status_code=202)

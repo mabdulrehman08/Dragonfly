@@ -4,7 +4,7 @@ There is no fire model here on purpose. A fire is a circle that grows and drifts
 Citizens do not think; the scenario file says who reports what and when. Once a human approves
 an incident, citizens who were told to leave walk or drive away from the fire, and drones fly.
 
-Everything an agent can learn about the world comes through `ninesixteen.tools`, which read this object.
+Everything an agent can learn about the world comes through `dragonfly.tools`, which read this object.
 The World is the only mutable state in the system.
 """
 
@@ -14,7 +14,7 @@ import json
 import math
 from pathlib import Path
 
-from ninesixteen.schemas import DronePlan, Incident, Report
+from dragonfly.schemas import DronePlan, Incident, Report
 
 DATA = Path(__file__).resolve().parent.parent / "data"
 SCENARIOS = Path(__file__).resolve().parent / "scenarios"

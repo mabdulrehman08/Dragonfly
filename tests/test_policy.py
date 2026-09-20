@@ -9,8 +9,8 @@ from typing import get_args
 import pytest
 from pydantic import ValidationError
 
-from ninesixteen import agents, engine
-from ninesixteen.schemas import Incident, IncidentDraft, IncidentStatus, Verdict
+from dragonfly import agents, engine
+from dragonfly.schemas import Incident, IncidentDraft, IncidentStatus, Verdict
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -55,7 +55,7 @@ def test_i1_verifier_signature_is_blind():
 def test_i3_single_outbox_writer():
     out = (
         subprocess.run(
-            ["grep", "-rn", "outbox" + ".append", "--include=*.py", "ninesixteen", "eval.py", "tests"],
+            ["grep", "-rn", "outbox" + ".append", "--include=*.py", "dragonfly", "eval.py", "tests"],
             cwd=ROOT,
             capture_output=True,
             text=True,
@@ -64,7 +64,7 @@ def test_i3_single_outbox_writer():
         .stdout.strip()
         .splitlines()
     )
-    assert len(out) == 1 and out[0].startswith("ninesixteen/server.py:"), out
+    assert len(out) == 1 and out[0].startswith("dragonfly/server.py:"), out
 
 
 def test_i3_agents_and_engine_never_touch_the_outbox():
@@ -85,6 +85,6 @@ def test_i7_every_prompt_states_report_text_is_data():
 
 
 def test_no_eval_or_shell_true():
-    for p in (ROOT / "ninesixteen").rglob("*.py"):
+    for p in (ROOT / "dragonfly").rglob("*.py"):
         src = p.read_text()
         assert "shell=True" not in src and not re.search(r"\beval\(", src), p

@@ -12,17 +12,17 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from ninesixteen.config import load_dotenv
-from ninesixteen.engine import INCIDENTS_DIR, Engine
-from ninesixteen.mcp import mcp_app
-from ninesixteen.schemas import Incident
-from ninesixteen.sim.world import World, compass, list_scenarios, load_scenario
+from dragonfly.config import load_dotenv
+from dragonfly.engine import INCIDENTS_DIR, Engine
+from dragonfly.mcp import mcp_app
+from dragonfly.schemas import Incident
+from dragonfly.sim.world import World, compass, list_scenarios, load_scenario
 
 STATIC = Path(__file__).resolve().parent / "static"
 PLAY_INTERVAL_S = 1.5
 
 load_dotenv()
-app = FastAPI(title="ninesixteen")
+app = FastAPI(title="Dragonfly")
 app.mount("/mcp", mcp_app)
 
 

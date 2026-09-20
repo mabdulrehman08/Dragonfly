@@ -1,6 +1,6 @@
 # NOTES — decisions made without asking
 
-- **Renamed to `ninesixteen`** (package, env prefix `NINESIXTEEN_*`, repo). Started from the partial step-1 in the parent folder.
+- **Renamed to `dragonfly`** (package, env prefix `DRAGONFLY_*`, repo). Started from the partial step-1 in the parent folder.
 - **Drones are in, but after the click.** The brief said no drones; the founder asked for them. Resolution: the drone layer
   is downstream of Approve. The Suppression Commander stages a `DronePlan`; `world.launch()` is called only inside
   `approve_incident`. I3 still holds: one outbox writer, one launch site, same function.
@@ -36,12 +36,12 @@
 - **Live mode is code-complete but untested**: no FIRMS key in this environment.
 - **Third backend, `claude-code`, added at 15:15** after finding XO Space only observes Claude Code / Codex / Cursor
   session logs, not raw API calls. Each agent run is `claude -p` with `--tools "" --restricted --strict-mcp-config`,
-  tools served by `ninesixteen/mcp.py` (hand-written JSON-RPC, no `mcp` package). The run id is in the MCP URL, so the
+  tools served by `dragonfly/mcp.py` (hand-written JSON-RPC, no `mcp` package). The run id is in the MCP URL, so the
   endpoint returns only that agent's allow-list. Sessions use the user's CLI login; no API key needed. Real eval: $0.95,
   all pass, invariance holds. The `claude` API backend is kept and works with a key.
 - **A bad API key in `claude` mode** was verified to degrade to `unverifiable` + human lane without crashing (I5).
 
-- **XO Space project attribution** (`ninesixteen/xo.py`, opt-in `NINESIXTEEN_XO_REGISTER=1`): the Space only lists a
+- **XO Space project attribution** (`dragonfly/xo.py`, opt-in `DRAGONFLY_XO_REGISTER=1`): the Space only lists a
   session under a project if a row exists in its own index at `~/.quirq/projects/<pid>/sessions/sessionslist.d/`. We write
   that row (same format as the Space's Claude adapter) before each `claude -p` with a pre-allocated `--session-id`, and
   refresh it with real token usage after. This is Quirq's state dir, not the project tree, so I4 is untouched; it is a

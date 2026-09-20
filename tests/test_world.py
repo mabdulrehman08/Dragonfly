@@ -1,5 +1,5 @@
-from ninesixteen.schemas import DronePlan
-from ninesixteen.sim.world import World, bearing_deg, compass, dist_m, load_scenario, offset
+from dragonfly.schemas import DronePlan
+from dragonfly.sim.world import World, bearing_deg, compass, dist_m, load_scenario, offset
 
 
 def test_haversine_and_offset_roundtrip():

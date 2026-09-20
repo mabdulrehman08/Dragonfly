@@ -1,11 +1,11 @@
-# ninesixteen — frontend spec
+# Dragonfly — frontend spec
 
 Hand this whole file to whoever (or whatever) builds the dashboard. It contains everything the frontend needs:
 what the product is, the exact backend API and JSON shapes, what every panel must show, and the hard rules.
 
 ## 1. What the app is (one paragraph)
 
-ninesixteen is a neighborhood wildfire emergency layer that sits beside 911. Anyone can report a fire, for themselves
+Dragonfly is a neighborhood wildfire emergency layer that sits beside 911. Anyone can report a fire, for themselves
 or for a neighbor who can't. Thirteen real Claude agents verify each report against the world (satellite, weather,
 other reports), never against the person, and prepare a full response: fire station, evacuation orders, neighbor
 helper asks, a public alert, and a drone suppression plan. Nothing is sent and no drone flies until a human dispatcher
@@ -18,7 +18,7 @@ A human decides. A neighbor arrives first.*
 
 ## 2. Hard rules the frontend must respect
 
-1. **Single file**: `ninesixteen/static/dashboard.html`, plain HTML + CSS + JS. No framework, no build step, no npm.
+1. **Single file**: `dragonfly/static/dashboard.html`, plain HTML + CSS + JS. No framework, no build step, no npm.
    External libraries only from a CDN, and only if they load in under a second. SVG map, not Leaflet.
 2. **Polling, not sockets**: `GET /state` every 1000 ms. The page is a pure function of that JSON.
 3. **There is no dismiss button anywhere.** Incidents are `open` or `approved`. A metric named "dismissed" is shown
@@ -142,7 +142,7 @@ Lane rule: `status == "approved"` → Approved lane. Else `needs_human_review` �
 ## 6. Screens and panels
 
 ### Header
-Logo text `ninesixteen` (accent on "sixteen"), the tagline, scenario `<select>` (from `scenarios`), buttons
+Logo text `dragonfly` (accent on "sixteen"), the tagline, scenario `<select>` (from `scenarios`), buttons
 **Reset**, **Step**, **Play/Pause** (label follows `playing`), and a big monospace tick counter `t12/40`.
 
 ### Metrics strip (one row of cards, big numbers)
@@ -211,7 +211,7 @@ System UI font for text, monospace for ids, ticks and logs.
    satellite hotspot at t10.
 
 ## 9. Files
-- Current implementation to replace: `ninesixteen/static/dashboard.html` (about 300 lines; usable as a reference).
-- Backend: `ninesixteen/server.py` (routes), `ninesixteen/sim/world.py` (`snapshot()` builds `/state`).
-- Run: `NINESIXTEEN_LLM=claude-code uvicorn ninesixteen.server:app --port 8916`, or `NINESIXTEEN_LLM=mock` for a
+- Current implementation to replace: `dragonfly/static/dashboard.html` (about 300 lines; usable as a reference).
+- Backend: `dragonfly/server.py` (routes), `dragonfly/sim/world.py` (`snapshot()` builds `/state`).
+- Run: `DRAGONFLY_LLM=claude-code uvicorn dragonfly.server:app --port 8916`, or `DRAGONFLY_LLM=mock` for a
   free, instant version of the same JSON to develop against.

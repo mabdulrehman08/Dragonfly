@@ -3,7 +3,7 @@
 XO Space attributes a Claude Code session to a project only when a row for it exists in the Space's own index at
 `<QUIRQ_STATE_ROOT>/projects/<pid>/sessions/sessionslist.d/`. The Space writes that row itself for agents it
 launches; for agents we launch, we write the same row. This is observability bookkeeping in Quirq's state
-directory, never in the project tree, and it is off unless `NINESIXTEEN_XO_REGISTER=1` and the repo has been
+directory, never in the project tree, and it is off unless `DRAGONFLY_XO_REGISTER=1` and the repo has been
 adopted by a Space (`.xo/project.json` exists). Format mirrors xo-space `adapters/claude_code/adapter.py`.
 """
 
@@ -20,7 +20,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
 def enabled() -> bool:
-    return os.environ.get("NINESIXTEEN_XO_REGISTER", "") == "1" and (REPO_ROOT / ".xo" / "project.json").exists()
+    return os.environ.get("DRAGONFLY_XO_REGISTER", "") == "1" and (REPO_ROOT / ".xo" / "project.json").exists()
 
 
 def _shard_dir() -> Path | None:
