@@ -1,0 +1,170 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Dragonfly poster</title>
+<style>
+  html,body{margin:0;background:#0b0d10}
+  body{width:1600px;height:900px;overflow:hidden;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+</style></head>
+<body>
+<svg width="1600" height="900" viewBox="0 0 1600 900" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="fire" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#fff2b0"/><stop offset="35%" stop-color="#ff8a2a"/><stop offset="75%" stop-color="#ff3d1f" stop-opacity=".85"/><stop offset="100%" stop-color="#ff3d1f" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ff5a1f" stop-opacity=".35"/><stop offset="100%" stop-color="#ff5a1f" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="cone" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#ff5a1f" stop-opacity=".28"/><stop offset="100%" stop-color="#ff5a1f" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0b0d10"/><stop offset="100%" stop-color="#11151c"/>
+    </linearGradient>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0H0V40" fill="none" stroke="#1a1f27" stroke-width="1"/>
+    </pattern>
+    <filter id="blur"><feGaussianBlur stdDeviation="18"/></filter>
+    <filter id="soft"><feGaussianBlur stdDeviation="2"/></filter>
+  </defs>
+
+  <rect width="1600" height="900" fill="url(#sky)"/>
+  <rect width="1600" height="900" fill="url(#grid)"/>
+
+  <!-- ridge lines -->
+  <g fill="none" stroke="#232a34" stroke-width="2">
+    <path d="M900 120 C1000 80 1100 140 1200 100 S1400 60 1600 110"/>
+    <path d="M880 190 C990 150 1090 210 1190 170 S1400 130 1600 180"/>
+    <path d="M860 260 C980 220 1080 280 1180 240 S1400 200 1600 250"/>
+  </g>
+
+  <!-- spread cone (wind from SW, head moves NE) -->
+  <g transform="translate(1180 330) rotate(-45)">
+    <path d="M0 0 L520 -230 Q600 0 520 230 Z" fill="url(#cone)" stroke="#ff5a1f" stroke-opacity=".35" stroke-dasharray="8 8"/>
+  </g>
+
+  <!-- fire -->
+  <circle cx="1180" cy="330" r="220" fill="url(#glow)" filter="url(#blur)"/>
+  <circle cx="1180" cy="330" r="118" fill="url(#fire)"/>
+  <circle cx="1180" cy="330" r="118" fill="none" stroke="#ff7a3a" stroke-width="3"/>
+  <!-- hotspots -->
+  <g fill="#ffb347">
+    <rect x="1120" y="300" width="12" height="12" transform="rotate(45 1126 306)"/>
+    <rect x="1190" y="350" width="12" height="12" transform="rotate(45 1196 356)"/>
+    <rect x="1215" y="290" width="12" height="12" transform="rotate(45 1221 296)"/>
+  </g>
+
+  <!-- station / drone base -->
+  <g transform="translate(1010 690)">
+    <rect x="-14" y="-14" width="28" height="28" fill="#fff"/>
+    <circle r="30" fill="none" stroke="#5ac8fa" stroke-width="2" stroke-dasharray="5 4"/>
+    <text x="0" y="56" text-anchor="middle" fill="#8b93a1" font-size="15">Station 11 · drone base</text>
+  </g>
+
+  <!-- drone swarm: base -> fire head -->
+  <g fill="#5ac8fa" opacity=".95">
+    <g id="swarm">
+      <circle cx="990" cy="660" r="3"/><circle cx="960" cy="640" r="3"/><circle cx="820" cy="600" r="3"/><circle cx="805" cy="585" r="3"/><circle cx="850" cy="580" r="3"/>
+      <circle cx="875" cy="565" r="3"/><circle cx="860" cy="545" r="3"/><circle cx="905" cy="545" r="3"/><circle cx="930" cy="530" r="3"/>
+      <circle cx="915" cy="510" r="3"/><circle cx="960" cy="512" r="3"/><circle cx="985" cy="495" r="3"/><circle cx="970" cy="475" r="3"/>
+      <circle cx="1010" cy="478" r="3"/><circle cx="1040" cy="462" r="3"/><circle cx="1025" cy="442" r="3"/><circle cx="1065" cy="445" r="3"/>
+      <circle cx="1090" cy="428" r="3"/><circle cx="1078" cy="408" r="3"/><circle cx="1115" cy="412" r="3"/><circle cx="1140" cy="395" r="3"/>
+      <circle cx="1128" cy="375" r="3"/><circle cx="1160" cy="380" r="3"/><circle cx="1185" cy="365" r="3"/><circle cx="1210" cy="352" r="3"/>
+      <circle cx="1240" cy="340" r="3"/><circle cx="1230" cy="318" r="3"/><circle cx="1262" cy="322" r="3"/><circle cx="1285" cy="300" r="3"/>
+    </g>
+    <use href="#swarm" transform="translate(18 -26)"/>
+    <use href="#swarm" transform="translate(-14 24)"/>
+    <use href="#swarm" transform="translate(34 6)"/>
+    <use href="#swarm" transform="translate(-30 -8)"/>
+  </g>
+  <!-- return leg -->
+  <g fill="#5ac8fa" opacity=".45">
+    <use href="#swarm" transform="translate(90 90)"/>
+  </g>
+  <!-- drops -->
+  <g fill="#9be0ff" opacity=".8" filter="url(#soft)">
+    <ellipse cx="1262" cy="262" rx="18" ry="8"/><ellipse cx="1290" cy="245" rx="14" ry="6"/><ellipse cx="1240" cy="280" rx="12" ry="5"/>
+  </g>
+
+  <!-- neighborhood: citizens -->
+  <g>
+    <!-- overrun / in path (amber) -->
+    <circle cx="1080" cy="480" r="8" fill="#ffd166"/><circle cx="1130" cy="520" r="8" fill="#ffd166"/>
+    <!-- contacted, moving out (green) with motion ticks -->
+    <g fill="#7ee787">
+      <circle cx="1000" cy="560" r="8"/><circle cx="940" cy="600" r="8"/><circle cx="1060" cy="600" r="8"/><circle cx="880" cy="650" r="8"/>
+    </g>
+    <g stroke="#7ee787" stroke-width="2" opacity=".6">
+      <path d="M1012 566 l16 10"/><path d="M952 606 l16 10"/><path d="M1072 606 l16 10"/><path d="M892 656 l16 10"/>
+    </g>
+    <!-- helper walking to neighbor who may need help -->
+    <circle cx="1150" cy="640" r="9" fill="#7ee787" stroke="#3ddc84" stroke-width="2"/>
+    <circle cx="1230" cy="600" r="9" fill="#ffd166" stroke="#ffd166" stroke-width="3"/>
+    <path d="M1160 635 L1220 604" stroke="#3ddc84" stroke-width="2" stroke-dasharray="4 4"/>
+    <!-- safe / reported -->
+    <circle cx="860" cy="740" r="7" fill="#f0a"/><circle cx="930" cy="720" r="7" fill="#666"/><circle cx="1130" cy="770" r="7" fill="#666"/>
+    <circle cx="1300" cy="700" r="7" fill="#f0a"/><circle cx="1400" cy="640" r="7" fill="#666"/><circle cx="1330" cy="700" r="7" fill="#3ddc84"/>
+    <!-- prank downtown, far away -->
+    <circle cx="1470" cy="745" r="7" fill="#f0a"/>
+    <text x="1455" y="750" text-anchor="end" fill="#8b93a1" font-size="14">prank downtown · uncorroborated · waits for a human</text>
+  </g>
+
+  <!-- compass -->
+  <g transform="translate(1500 120)">
+    <circle r="34" fill="none" stroke="#333"/>
+    <line x1="0" y1="0" x2="26" y2="-26" stroke="#ff5a1f" stroke-width="4"/>
+    <text y="58" text-anchor="middle" fill="#8b93a1" font-size="14">spread NE · 41 km/h</text>
+  </g>
+
+  <!-- headline block -->
+  <g transform="translate(90 120)">
+    <text fill="#e8eaed" font-size="72" font-weight="800" letter-spacing="-1">dragon<tspan fill="#ff5a1f">fly</tspan></text>
+    <text y="46" fill="#8b93a1" font-size="22">a neighborhood emergency layer beside 911, for wildfires</text>
+
+    <g transform="translate(0 130)" font-size="40" font-weight="700" fill="#e8eaed">
+      <text y="0">Everyone can call <tspan fill="#f0a">for anyone.</tspan></text>
+      <text y="62">The machine checks <tspan fill="#ffb347">the world,</tspan> not the person.</text>
+      <text y="124">A <tspan fill="#3ddc84">human</tspan> decides.</text>
+      <text y="186">A <tspan fill="#7ee787">neighbor</tspan> arrives first.</text>
+    </g>
+
+    <!-- agent chips -->
+    <g transform="translate(0 380)" font-size="15" font-weight="600">
+      <text fill="#8b93a1" y="-14" font-size="13" letter-spacing="2">13 REAL CLAUDE AGENTS · ONE OBSERVABLE SESSION PER RUN</text>
+      <g fill="#14171c" stroke="#262b33">
+        <rect x="0" y="0" width="82" height="30" rx="15"/><rect x="90" y="0" width="90" height="30" rx="15"/><rect x="188" y="0" width="86" height="30" rx="15"/>
+        <rect x="282" y="0" width="150" height="30" rx="15"/><rect x="440" y="0" width="160" height="30" rx="15"/>
+        <rect x="0" y="38" width="160" height="30" rx="15"/><rect x="168" y="38" width="110" height="30" rx="15"/><rect x="286" y="38" width="160" height="30" rx="15"/>
+        <rect x="454" y="38" width="130" height="30" rx="15"/>
+        <rect x="0" y="76" width="110" height="30" rx="15"/><rect x="118" y="76" width="200" height="30" rx="15"/><rect x="326" y="76" width="150" height="30" rx="15"/><rect x="484" y="76" width="120" height="30" rx="15"/>
+      </g>
+      <g fill="#c9d1d9">
+        <text x="41" y="20" text-anchor="middle">intake</text><text x="135" y="20" text-anchor="middle">sentinel</text><text x="231" y="20" text-anchor="middle" fill="#ffb347">verifier</text>
+        <text x="357" y="20" text-anchor="middle">weather analyst</text><text x="520" y="20" text-anchor="middle">perimeter tracker</text>
+        <text x="80" y="58" text-anchor="middle">resource allocator</text><text x="223" y="58" text-anchor="middle">emergency</text><text x="366" y="58" text-anchor="middle">evacuation router</text>
+        <text x="519" y="58" text-anchor="middle">helper matcher</text>
+        <text x="55" y="96" text-anchor="middle">public info</text><text x="218" y="96" text-anchor="middle" fill="#5ac8fa">suppression commander</text><text x="401" y="96" text-anchor="middle" fill="#5ac8fa">drone squad lead</text><text x="544" y="96" text-anchor="middle">after-action</text>
+      </g>
+    </g>
+
+    <!-- approve gate -->
+    <g transform="translate(0 540)">
+      <rect x="0" y="0" width="230" height="56" rx="10" fill="#3ddc84"/>
+      <text x="115" y="36" text-anchor="middle" fill="#05210f" font-size="24" font-weight="800">Approve</text>
+      <text x="250" y="24" fill="#e8eaed" font-size="18" font-weight="600">the only thing that sends a message or launches a drone</text>
+      <text x="250" y="48" fill="#8b93a1" font-size="16">dismissed: <tspan fill="#3ddc84" font-weight="700">0</tspan> · verdicts: corroborated / uncorroborated / unverifiable · there is no "false"</text>
+    </g>
+  </g>
+
+  <!-- metric strip -->
+  <g transform="translate(90 790)" font-family="ui-monospace,Menlo,monospace">
+    <g fill="#14171c" stroke="#262b33"><rect x="0" y="0" width="1420" height="70" rx="12"/></g>
+    <g font-size="13" fill="#8b93a1">
+      <text x="30" y="26">REPORTS</text><text x="190" y="26">INCIDENTS</text><text x="360" y="26">PEOPLE SAVED</text><text x="560" y="26">OVERRUN</text>
+      <text x="720" y="26">DRONES</text><text x="880" y="26">CONTAINED</text><text x="1060" y="26">ACRES BURNED</text><text x="1260" y="26">COST</text>
+    </g>
+    <g font-size="30" font-weight="700" fill="#e8eaed">
+      <text x="30" y="58">12</text><text x="190" y="58">2</text><text x="360" y="58" fill="#7ee787">6</text><text x="560" y="58" fill="#3ddc84">0</text>
+      <text x="720" y="58" fill="#5ac8fa">500</text><text x="880" y="58" fill="#3ddc84">t8</text><text x="1060" y="58">36 <tspan font-size="16" fill="#8b93a1">of 840</tspan></text><text x="1260" y="58">$0.45</text>
+    </g>
+  </g>
+</svg>
+</body></html>
