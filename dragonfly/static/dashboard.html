@@ -1,295 +1,1763 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Dragonfly</title>
-<style>
-  :root {
-    --bg: #0b0d10; --panel: #14171c; --line: #262b33; --text: #e8eaed; --muted: #8b93a1;
-    --fire: #ff5a1f; --ember: #ffb347; --ok: #3ddc84; --warn: #ffd166; --bad: #ff4d6d; --drone: #5ac8fa; --safe: #7ee787;
-    --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
-  }
-  * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.4 var(--font); }
-  header { display: flex; align-items: center; gap: 16px; padding: 12px 20px; border-bottom: 1px solid var(--line); background: var(--panel); position: sticky; top: 0; z-index: 2; }
-  header h1 { font-size: 22px; margin: 0; letter-spacing: 0.5px; }
-  header h1 span { color: var(--fire); }
-  header .tag { color: var(--muted); font-size: 13px; }
-  header .spacer { flex: 1; }
-  select, button { font: inherit; background: #1c2027; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 8px 14px; cursor: pointer; }
-  button.primary { background: var(--fire); border-color: var(--fire); color: #111; font-weight: 700; }
-  button.approve { background: var(--ok); border-color: var(--ok); color: #05210f; font-weight: 700; }
-  button:disabled { opacity: .45; cursor: default; }
-  .tick { font: 700 20px var(--mono); min-width: 90px; text-align: right; }
-  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 8px; padding: 12px 20px; }
-  .metric { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
-  .metric .k { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .6px; }
-  .metric .v { font: 700 24px var(--mono); }
-  .metric.zero .v { color: var(--ok); }
-  .metric.saved .v { color: var(--safe); }
-  .metric.bad .v { color: var(--bad); }
-  .metric.drone .v { color: var(--drone); }
-  main { display: grid; grid-template-columns: minmax(420px, 1.15fr) minmax(360px, 1fr) minmax(300px, .8fr); gap: 12px; padding: 0 20px 20px; }
-  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; min-height: 200px; }
-  .panel h2 { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .8px; margin: 0 0 10px; }
-  svg { width: 100%; height: auto; background: #0e1116; border-radius: 8px; display: block; }
-  .legend { display: flex; flex-wrap: wrap; gap: 10px 16px; font-size: 12px; color: var(--muted); margin-top: 8px; }
-  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
-  .lane { margin-bottom: 14px; }
-  .lane h3 { margin: 0 0 8px; font-size: 15px; }
-  .lane h3 small { color: var(--muted); font-weight: 400; }
-  .card { border: 1px solid var(--line); border-left: 4px solid var(--line); border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; background: #101318; }
-  .card.ready { border-left-color: var(--ok); }
-  .card.human { border-left-color: var(--warn); }
-  .card.approved { border-left-color: var(--drone); opacity: .85; }
-  .card .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
-  .card .id { font: 700 15px var(--mono); }
-  .pill { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; text-transform: uppercase; letter-spacing: .5px; }
-  .pill.corroborated { background: #143d26; color: var(--ok); }
-  .pill.uncorroborated { background: #3d3414; color: var(--warn); }
-  .pill.unverifiable { background: #3d1420; color: var(--bad); }
-  .pill.approved { background: #12303d; color: var(--drone); }
-  .pill.p1 { background: #3d1a14; color: var(--fire); }
-  .bar { height: 6px; background: #22272f; border-radius: 3px; overflow: hidden; margin: 4px 0 8px; }
-  .bar i { display: block; height: 100%; background: var(--ok); }
-  .ev { font-size: 13px; margin: 2px 0; }
-  .ev.yes::before { content: "✔ "; color: var(--ok); }
-  .ev.no::before { content: "✘ "; color: var(--muted); }
-  .ev b { color: var(--muted); font-weight: 500; }
-  .meta { color: var(--muted); font-size: 12px; margin-top: 6px; }
-  .plan { font-size: 13px; margin-top: 6px; border-top: 1px dashed var(--line); padding-top: 6px; }
-  .plan div { margin: 2px 0; }
-  .phones { display: flex; flex-direction: column; gap: 8px; max-height: 360px; overflow: auto; }
-  .sms { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; background: #0f1a12; font-size: 13px; animation: pop .4s ease; }
-  .sms.helper { background: #1a170f; }
-  .sms.alert { background: #1a0f12; }
-  .sms .to { font: 600 12px var(--mono); color: var(--muted); margin-bottom: 3px; }
-  @keyframes pop { from { transform: scale(.96); opacity: 0; } to { transform: none; opacity: 1; } }
-  .log { font: 12px/1.5 var(--mono); max-height: 320px; overflow: auto; color: #c9d1d9; }
-  .log div { padding: 1px 0; border-bottom: 1px solid #1a1e25; }
-  .log .agent { color: var(--drone); }
-  .log .fail { color: var(--bad); }
-  .log .cost { color: var(--muted); }
-  .empty { color: var(--muted); font-size: 13px; padding: 12px 0; }
-  .banner { padding: 8px 12px; border-radius: 8px; margin-bottom: 10px; font-weight: 600; display: none; }
-  .banner.contained { display: block; background: #143d26; color: var(--ok); }
-  .banner.out { display: block; background: #12303d; color: var(--drone); }
-  @media (max-width: 1100px) { main { grid-template-columns: 1fr; } }
-  @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) { --bg: #0b0d10; } }
-</style>
-</head>
-<body>
-<header>
-  <h1>dragon<span>fly</span></h1>
-  <span class="tag">everyone can call for anyone · the machine checks the world, not the person · a human decides · a neighbor arrives first</span>
-  <span class="spacer"></span>
-  <select id="scenario"></select>
-  <button id="reset">Reset</button>
-  <button id="step">Step</button>
-  <button id="play" class="primary">Play</button>
-  <span class="tick" id="tick">t00</span>
-</header>
-
-<div class="metrics" id="metrics"></div>
-
-<main>
-  <section class="panel">
-    <h2>World · <span id="scenario-desc"></span></h2>
-    <div id="banner" class="banner"></div>
-    <svg id="map" viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg"></svg>
-    <div class="legend">
-      <span><i style="background:var(--fire)"></i>fire</span>
-      <span><i style="background:var(--ember)"></i>satellite hotspot</span>
-      <span><i style="background:#666"></i>citizen</span>
-      <span><i style="background:#f0a"></i>reported</span>
-      <span><i style="background:var(--warn)"></i>in the path</span>
-      <span><i style="background:var(--safe)"></i>contacted / evacuating</span>
-      <span><i style="background:var(--ok)"></i>safe</span>
-      <span><i style="background:var(--bad)"></i>overrun</span>
-      <span><i style="background:var(--drone)"></i>drone</span>
-      <span><i style="background:#fff;border-radius:0"></i>station</span>
-    </div>
-  </section>
-
-  <section class="panel">
-    <h2>Dispatcher queue</h2>
-    <div class="lane"><h3>Ready to approve <small id="n-ready"></small></h3><div id="lane-ready"></div></div>
-    <div class="lane"><h3>Needs your eyes <small id="n-human"></small></h3><div id="lane-human"></div></div>
-    <div class="lane"><h3>Approved <small id="n-approved"></small></h3><div id="lane-approved"></div></div>
-  </section>
-
-  <section class="panel">
-    <h2>Simulated phones</h2>
-    <div class="phones" id="phones"></div>
-    <h2 style="margin-top:16px">Agent activity</h2>
-    <div class="log" id="activity"></div>
-    <h2 style="margin-top:16px">World log</h2>
-    <div class="log" id="log"></div>
-  </section>
-</main>
-
-<script>
-  const $ = (s) => document.querySelector(s);
-  const state = { data: null, names: {} };
-
-  async function api(path, method = "GET") {
-    const r = await fetch(path, { method });
-    return r.json();
-  }
-
-  // -- map projection: fit all citizens + stations + fire into the viewBox --
-  const VB = { w: 800, h: 600, pad: 30 };
-  function projector(d) {
-    const pts = [...d.citizens, ...d.stations];
-    if (d.fire) pts.push(d.fire);
-    let minLat = 1e9, maxLat = -1e9, minLon = 1e9, maxLon = -1e9;
-    for (const p of pts) { minLat = Math.min(minLat, p.lat); maxLat = Math.max(maxLat, p.lat); minLon = Math.min(minLon, p.lon); maxLon = Math.max(maxLon, p.lon); }
-    const cosLat = Math.cos((minLat + maxLat) / 2 * Math.PI / 180);
-    const spanX = (maxLon - minLon) * cosLat || 1e-6, spanY = (maxLat - minLat) || 1e-6;
-    const s = Math.min((VB.w - 2 * VB.pad) / spanX, (VB.h - 2 * VB.pad) / spanY);
-    const ox = (VB.w - spanX * s) / 2, oy = (VB.h - spanY * s) / 2;
-    const mPerDeg = 111320;
-    return {
-      x: (lon) => ox + (lon - minLon) * cosLat * s,
-      y: (lat) => VB.h - (oy + (lat - minLat) * s),
-      m: (meters) => meters / mPerDeg * s,
-    };
-  }
-
-  const stateColor = { safe: "#666", in_path: "var(--warn)", contacted: "var(--safe)", evacuating: "var(--safe)", evacuated: "var(--ok)", overrun: "var(--bad)" };
-
-  function drawMap(d) {
-    const P = projector(d);
-    const out = [];
-    // spread envelope cone
-    if (d.fire && d.fire.radius_m > 0) {
-      const cx = P.x(d.fire.lon), cy = P.y(d.fire.lat), r = P.m(d.fire.radius_m), env = P.m(d.envelope_m);
-      const b = (d.spread_bearing || 0) * Math.PI / 180;
-      const tip = [cx + Math.sin(b) * (r + env), cy - Math.cos(b) * (r + env)];
-      const l = [cx + Math.sin(b - 0.87) * (r + env * 0.9), cy - Math.cos(b - 0.87) * (r + env * 0.9)];
-      const rr = [cx + Math.sin(b + 0.87) * (r + env * 0.9), cy - Math.cos(b + 0.87) * (r + env * 0.9)];
-      out.push(`<path d="M${cx},${cy} L${l[0]},${l[1]} Q${tip[0]},${tip[1]} ${rr[0]},${rr[1]} Z" fill="rgba(255,90,31,.08)" stroke="rgba(255,90,31,.25)" stroke-dasharray="4 4"/>`);
-      out.push(`<circle cx="${cx}" cy="${cy}" r="${r + 6}" fill="rgba(255,90,31,.15)"/>`);
-      out.push(`<circle cx="${cx}" cy="${cy}" r="${r}" fill="rgba(255,90,31,.45)" stroke="var(--fire)" stroke-width="2"/>`);
-    }
-    for (const h of d.hotspots) out.push(`<rect x="${P.x(h.lon) - 5}" y="${P.y(h.lat) - 5}" width="10" height="10" fill="var(--ember)" transform="rotate(45 ${P.x(h.lon)} ${P.y(h.lat)})"><title>hotspot t${h.tick}</title></rect>`);
-    for (const s of d.stations) out.push(`<rect x="${P.x(s.lon) - 6}" y="${P.y(s.lat) - 6}" width="12" height="12" fill="#fff"><title>${s.name}</title></rect>`);
-    if (d.drone_base) out.push(`<circle cx="${P.x(d.drone_base.lon)}" cy="${P.y(d.drone_base.lat)}" r="9" fill="none" stroke="var(--drone)" stroke-width="1.5" stroke-dasharray="3 2"/>`);
-    for (const c of d.citizens) {
-      const fill = c.reported && c.state === "safe" ? "#f0a" : (stateColor[c.state] || "#666");
-      const ring = c.opt_in === "may_need_help" ? `stroke="var(--warn)" stroke-width="2"` : c.opt_in === "can_help" ? `stroke="var(--ok)" stroke-width="1.5"` : ``;
-      out.push(`<circle cx="${P.x(c.lon)}" cy="${P.y(c.lat)}" r="6" fill="${fill}" ${ring}><title>${c.name} · ${c.opt_in} · ${c.state}</title></circle>`);
-    }
-    for (const dr of d.drones) {
-      if (dr.state === "base") continue;
-      out.push(`<circle cx="${P.x(dr.lon)}" cy="${P.y(dr.lat)}" r="2.5" fill="var(--drone)" opacity=".9"/>`);
-    }
-    if (d.fire) {
-      const b = (d.spread_bearing || 0) * Math.PI / 180;
-      out.push(`<g transform="translate(740,60)"><circle r="22" fill="none" stroke="#333"/><line x1="0" y1="0" x2="${Math.sin(b) * 20}" y2="${-Math.cos(b) * 20}" stroke="var(--fire)" stroke-width="3"/><text y="38" text-anchor="middle" fill="#8b93a1" font-size="11">spread ${d.weather.wind_kmh} km/h</text></g>`);
-    }
-    $("#map").innerHTML = out.join("");
-  }
-
-  function metric(k, v, cls = "") { return `<div class="metric ${cls}"><div class="k">${k}</div><div class="v">${v ?? "–"}</div></div>`; }
-
-  function drawMetrics(m, d) {
-    const fire = !!d.fire;
-    $("#metrics").innerHTML = [
-      metric("reports", m.reports), metric("incidents", m.incidents), metric("corroborated", m.corroborated),
-      metric("human review", m.human_review), metric("dismissed", m.dismissed, "zero"),
-      metric("first corroborated", m.first_corroborated_tick == null ? "–" : "t" + m.first_corroborated_tick),
-      metric("people at risk", m.people_at_risk, m.people_at_risk ? "bad" : ""), metric("people saved", m.people_saved, "saved"),
-      metric("overrun", m.people_overrun, m.people_overrun ? "bad" : "zero"),
-      metric("drones active", m.drones_active, "drone"), metric("drops", m.drops, "drone"),
-      metric("acres burned", fire ? m.acres_burned : 0), metric("acres w/o drones", fire ? m.acres_without_drones : 0),
-      metric("cost", "$" + (m.cost_usd || 0).toFixed(3)), metric("agent sessions", m.sessions),
-    ].join("");
-    const b = $("#banner");
-    if (m.extinguished_tick != null) { b.className = "banner out"; b.textContent = `Fire extinguished at t${m.extinguished_tick} after ${m.drops} drops · ${m.acres_burned} acres burned instead of ${m.acres_without_drones}`; }
-    else if (m.contained_tick != null) { b.className = "banner contained"; b.textContent = `Fire contained at t${m.contained_tick} · drones are outpacing growth`; }
-    else b.className = "banner";
-  }
-
-  function name(id) { return state.names[id] || id; }
-
-  function card(i, d) {
-    const lane = i.status === "approved" ? "approved" : i.needs_human_review ? "human" : "ready";
-    const v = i.verdict;
-    const ev = v.evidence.map(e => `<div class="ev ${e.supports ? "yes" : "no"}"><b>${e.source}</b> — ${e.finding}</div>`).join("");
-    const reps = d.reports.filter(r => i.report_ids.includes(r.id));
-    const proxy = reps.some(r => r.for_whom === "other");
-    let plan = "";
-    if (i.plan) {
-      plan += `<div class="plan"><div>🚒 <b>${i.plan.station}</b> · ${i.plan.distance_km} km · ETA ${i.plan.eta_min} min · evacuate <b>${i.plan.evacuation_direction}</b></div>`;
-      plan += `<div>📱 to reporter: “${i.plan.message_to_reporter}”</div>`;
-      if (i.helpers && i.helpers.assignments.length) plan += `<div>🤝 ${i.helpers.assignments.length} neighbor ask(s): ${i.helpers.assignments.map(a => name(a.helper_id) + "→" + name(a.person_id)).join(", ")}</div>`;
-      if (i.evacuation) plan += `<div>🧭 ${i.evacuation.orders.length} evacuation orders · rally: ${i.evacuation.rally_point}</div>`;
-      if (i.drone_plan) plan += `<div>🛸 ${i.drone_plan.drones} drones · ${i.drone_plan.pattern.replace("_", " ")} · bearing ${Math.round(i.drone_plan.target_bearing_deg)}°</div>`;
-      if (i.resources) plan += `<div>🚨 ${i.resources.apparatus} apparatus${i.resources.mutual_aid ? " + mutual aid" : ""}</div>`;
-      plan += `</div>`;
-    }
-    if (i.after_action) plan += `<div class="plan"><div>📋 ${i.after_action.summary}</div></div>`;
-    const btn = i.status === "approved" ? `<span class="pill approved">approved t${i.approved_tick}</span>`
-      : `<button class="approve" onclick="approve('${i.id}')">Approve${lane === "human" ? " anyway" : ""}</button>`;
-    return `<div class="card ${lane}">
-      <div class="row"><span class="id">${i.id}</span><span class="pill ${v.label}">${v.label}</span>
-        ${i.plan && i.plan.priority === 1 ? `<span class="pill p1">priority 1</span>` : ""}
-        ${proxy ? `<span class="pill" style="background:#2a1f3d;color:#c9a6ff">reported for a neighbor</span>` : ""}
-        ${i.draft.urgency_signals.includes("injection_suspected") ? `<span class="pill unverifiable">injection suspected</span>` : ""}
-        <span class="spacer" style="flex:1"></span>${btn}</div>
-      <div class="bar"><i style="width:${Math.round(v.confidence * 100)}%"></i></div>
-      ${ev || `<div class="ev no">no evidence recorded</div>`}
-      <div class="meta">x${i.corroboration_count} report(s) · ${i.draft.urgency_signals.join(", ") || "no signals"} · ${i.sessions} sessions · $${i.cost_usd.toFixed(4)}</div>
-      ${plan}
-    </div>`;
-  }
-
-  function drawQueue(d) {
-    const inc = d.incidents;
-    const ready = inc.filter(i => i.status === "open" && !i.needs_human_review);
-    const human = inc.filter(i => i.status === "open" && i.needs_human_review);
-    const approved = inc.filter(i => i.status === "approved");
-    $("#lane-ready").innerHTML = ready.map(i => card(i, d)).join("") || `<div class="empty">nothing corroborated yet</div>`;
-    $("#lane-human").innerHTML = human.map(i => card(i, d)).join("") || `<div class="empty">empty</div>`;
-    $("#lane-approved").innerHTML = approved.map(i => card(i, d)).join("") || `<div class="empty">none</div>`;
-    $("#n-ready").textContent = ready.length; $("#n-human").textContent = human.length; $("#n-approved").textContent = approved.length;
-  }
-
-  function drawPhones(d) {
-    $("#phones").innerHTML = d.outbox.slice().reverse().map(m =>
-      `<div class="sms ${m.kind}"><div class="to">📱 ${name(m.to)} · ${m.kind} · t${m.tick} · ${m.incident}</div>${m.text}</div>`).join("")
-      || `<div class="empty">no messages sent — nothing goes out without Approve</div>`;
-  }
-
-  function drawLogs(d) {
-    $("#activity").innerHTML = d.activity.slice().reverse().map(a =>
-      `<div>t${String(a.tick).padStart(2, "0")} <span class="agent">${a.agent}</span> ${a.run_id.split("-").pop()} ${a.tools.length ? "→ " + a.tools.join(", ") : ""} ${a.ok ? "" : `<span class="fail">FAILED ${a.note}</span>`} <span class="cost">${a.ms}ms $${a.cost_usd.toFixed(4)}</span></div>`).join("")
-      || `<div class="empty">agents idle</div>`;
-    $("#log").innerHTML = d.log.slice().reverse().map(l => `<div>${l}</div>`).join("");
-  }
-
-  function render(d) {
-    state.data = d;
-    for (const c of d.citizens) state.names[c.id] = c.name;
-    $("#tick").textContent = "t" + String(d.tick).padStart(2, "0") + "/" + d.ticks;
-    $("#play").textContent = d.playing ? "Pause" : "Play";
-    $("#step").disabled = d.playing || d.tick >= d.ticks;
-    const sel = $("#scenario");
-    if (sel.options.length !== d.scenarios.length) sel.innerHTML = d.scenarios.map(s => `<option>${s}</option>`).join("");
-    if (sel.value !== d.scenario && document.activeElement !== sel) sel.value = d.scenario;
-    $("#scenario-desc").textContent = d.scenario.replace(/_/g, " ");
-    drawMap(d); drawMetrics(d.metrics, d); drawQueue(d); drawPhones(d); drawLogs(d);
-  }
-
-  async function poll() { try { render(await api("state")); } catch (e) { console.error(e); } }
-  window.approve = async (id) => { await api("approve/" + id, "POST"); poll(); };
-  $("#play").onclick = async () => { await api("play", "POST"); poll(); };
-  $("#step").onclick = async () => { await api("step", "POST"); poll(); };
-  $("#reset").onclick = async () => { await api("reset/" + $("#scenario").value, "POST"); poll(); };
-  $("#scenario").onchange = () => $("#reset").onclick();
-  poll(); setInterval(poll, 1000);
-</script>
-</body>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0b0d10" />
+    <title>Dragonfly · Wildfire response</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0b0d10;
+        --panel: #14171c;
+        --line: #262b33;
+        --text: #e8eaed;
+        --muted: #a1a9b6;
+        --fire: #ff5a1f;
+        --ember: #ffb347;
+        --ok: #3ddc84;
+        --warn: #ffd166;
+        --bad: #ff4d6d;
+        --drone: #5ac8fa;
+        --safe: #7ee787;
+        --mono: ui-monospace, SFMono-Regular, Consolas, monospace;
+        font:
+          15px/1.5 system-ui,
+          -apple-system,
+          "Segoe UI",
+          sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+      }
+      button,
+      select {
+        font: inherit;
+        color: inherit;
+        border: 1px solid #3a424e;
+        background: #1b2028;
+        border-radius: 7px;
+        padding: 10px 14px;
+        cursor: pointer;
+      }
+      button:hover,
+      select:hover {
+        border-color: var(--drone);
+        background: #232b36;
+      }
+      button:disabled {
+        opacity: 0.45;
+        cursor: wait;
+      }
+      button:focus-visible,
+      select:focus-visible,
+      summary:focus-visible,
+      a:focus-visible {
+        outline: 3px solid var(--drone);
+        outline-offset: 3px;
+      }
+      .primary {
+        background: var(--fire);
+        border-color: var(--fire);
+        color: #150a05;
+        font-weight: 750;
+        min-width: 92px;
+      }
+      .primary:hover {
+        background: #ff814e;
+      }
+      .approve {
+        background: var(--ok);
+        color: #05200f;
+        border: 1px solid var(--ok);
+        font-weight: 800;
+        box-shadow: 0 0 20px #3ddc8410;
+        white-space: nowrap;
+      }
+      .approve:hover {
+        background: #82edb3;
+        border-color: #82edb3;
+      }
+      .spacer {
+        flex: 1;
+      }
+      .mono {
+        font-family: var(--mono);
+      }
+      .muted {
+        color: var(--muted);
+      }
+      header {
+        border-bottom: 1px solid var(--line);
+        padding: 20px 24px;
+        background: #101318;
+      }
+      .topline {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+      .brand {
+        font-size: 27px;
+        font-weight: 800;
+        letter-spacing: -1px;
+        margin: 0;
+      }
+      .brand span {
+        color: var(--fire);
+      }
+      .environment {
+        color: var(--muted);
+        font: 11px var(--mono);
+        letter-spacing: 1.4px;
+        border-left: 1px solid #3a424e;
+        padding-left: 16px;
+      }
+      .controls {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-left: auto;
+      }
+      .controls select {
+        max-width: 190px;
+      }
+      .tick {
+        font: 650 24px var(--mono);
+        min-width: 100px;
+        text-align: right;
+        color: #fff;
+      }
+      .tagline {
+        margin: 12px 0 0;
+        color: #b2bac6;
+        font-size: 15px;
+        max-width: 1050px;
+      }
+      .tagline strong {
+        font-weight: 500;
+        color: #fff;
+      }
+      .overview {
+        padding: 20px 24px 0;
+      }
+      .section-heading {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+      .eyebrow {
+        font: 12px var(--mono);
+        color: var(--muted);
+        letter-spacing: 1.8px;
+        text-transform: uppercase;
+      }
+      .status {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        font: 13px var(--mono);
+        color: var(--muted);
+      }
+      .status::before {
+        content: "";
+        width: 7px;
+        height: 7px;
+        background: var(--drone);
+        border-radius: 50%;
+      }
+      .status.working {
+        color: var(--warn);
+      }
+      .status.working::before {
+        background: var(--warn);
+        animation: pulse 1s infinite alternate;
+      }
+      .status.offline {
+        color: var(--bad);
+      }
+      .status.offline::before {
+        background: var(--bad);
+      }
+      .metrics {
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        padding: 0 0 12px;
+        scrollbar-color: #465365 #14171c;
+        scrollbar-width: thin;
+      }
+      .metric {
+        flex: 1 0 72px;
+        min-width: 0;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        padding: 12px 8px;
+        background: var(--panel);
+        min-height: 105px;
+      }
+      .metric .k {
+        font-size: 11px;
+        overflow-wrap: anywhere;
+        color: var(--muted);
+        line-height: 1.3;
+        min-height: 31px;
+      }
+      .metric .v {
+        font: 650 28px var(--mono);
+        margin-top: 8px;
+        letter-spacing: -1px;
+        white-space: nowrap;
+      }
+      #metric-cost_usd {
+        flex-basis: 96px;
+      }
+      #metric-cost_usd .v,
+      #metric-acres_burned .v,
+      #metric-acres_without_drones .v {
+        font-size: 21px;
+      }
+      .metric.hero {
+        flex-basis: 120px;
+        background: linear-gradient(130deg, #123c28, #15211c);
+        border-color: #2b6947;
+      }
+      .metric.hero .k {
+        color: #a2e8bd;
+        font-size: 14px;
+      }
+      .metric.hero .v {
+        font-size: 40px;
+        line-height: 1;
+        color: var(--ok);
+      }
+      .metric.good .v {
+        color: var(--ok);
+      }
+      .metric.bad .v {
+        color: var(--bad);
+      }
+      .metric.drone .v {
+        color: var(--drone);
+      }
+      .metric small {
+        font-size: 11px;
+        display: block;
+        color: var(--muted);
+        margin-top: 5px;
+      }
+      .banner {
+        border: 1px solid #32754e;
+        border-radius: 8px;
+        padding: 14px 18px;
+        margin: 6px 0 16px;
+        background: #123322;
+        color: #8aefb4;
+        font-size: 17px;
+        font-weight: 650;
+      }
+      .banner.out {
+        border-color: #2884aa;
+        color: #9ce4ff;
+        background: #113143;
+        font-size: 19px;
+      }
+      .notice {
+        margin: 0 0 14px;
+        border: 1px solid #803443;
+        border-radius: 8px;
+        background: #321820;
+        padding: 12px;
+        color: #ffafbd;
+      }
+      .layout {
+        padding: 4px 24px 24px;
+        display: grid;
+        grid-template-columns: minmax(0, 1.24fr) minmax(0, 1.08fr) minmax(
+            0,
+            0.9fr
+          );
+        align-items: start;
+        gap: 16px;
+      }
+      .panel {
+        border: 1px solid var(--line);
+        border-radius: 11px;
+        background: var(--panel);
+        overflow: hidden;
+        min-width: 0;
+      }
+      .panel-head {
+        padding: 15px 16px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        border-bottom: 1px solid var(--line);
+      }
+      .panel-head h2 {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 650;
+      }
+      .panel-index {
+        font: 12px var(--mono);
+        color: #6d7a8d;
+      }
+      .panel-body {
+        padding: 16px;
+      }
+      .map-heading {
+        font: 12px var(--mono);
+        color: var(--muted);
+        margin: 0 0 12px;
+      }
+      .map-stage {
+        position: relative;
+        background: radial-gradient(ellipse at 60% 20%, #15202a, #0c1118 75%);
+        border: 1px solid #273242;
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      #map {
+        display: block;
+        width: 100%;
+        height: auto;
+        min-height: 320px;
+      }
+      .legend {
+        display: flex;
+        gap: 9px 13px;
+        flex-wrap: wrap;
+        margin: 14px 0 0;
+        font-size: 12px;
+        color: #bcc5d1;
+      }
+      .legend i {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-right: 5px;
+      }
+      .map-note {
+        color: var(--muted);
+        font-size: 12px;
+        border-top: 1px solid var(--line);
+        margin-top: 16px;
+        padding-top: 13px;
+      }
+      .mission {
+        margin-top: 18px;
+        border-top: 1px solid var(--line);
+        padding-top: 15px;
+      }
+      .mission h3 {
+        margin: 0 0 6px;
+        font-size: 15px;
+        color: var(--drone);
+      }
+      .mission p {
+        margin: 5px 0;
+        font-size: 14px;
+        color: #b5bfcc;
+      }
+      .mission-counts {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 10px;
+      }
+      .mission-counts span {
+        font: 12px var(--mono);
+        background: #1a2532;
+        padding: 5px 7px;
+        border-radius: 4px;
+        color: #9ecee4;
+      }
+      .lane + .lane {
+        border-top: 1px solid var(--line);
+        padding-top: 18px;
+        margin-top: 18px;
+      }
+      .lane-heading {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0 0 13px;
+        font-size: 15px;
+      }
+      .lane-heading::before {
+        content: "";
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--ok);
+      }
+      .human .lane-heading::before {
+        background: var(--warn);
+      }
+      .approved .lane-heading::before {
+        background: var(--drone);
+      }
+      .count {
+        font: 12px var(--mono);
+        padding: 2px 7px;
+        border-radius: 4px;
+        background: #222932;
+        color: #b9c7d8;
+        margin-left: auto;
+      }
+      .card {
+        border: 1px solid #303b45;
+        border-left: 3px solid var(--ok);
+        background: #10151c;
+        border-radius: 8px;
+        padding: 13px;
+        margin-top: 10px;
+        overflow-wrap: anywhere;
+      }
+      .card.human {
+        border-left-color: var(--warn);
+      }
+      .card.approved {
+        border-left-color: var(--drone);
+      }
+      .card-header {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        flex-wrap: wrap;
+      }
+      .card-id {
+        font: 650 15px var(--mono);
+      }
+      .card-header .approve {
+        margin-left: auto;
+      }
+      .pills {
+        display: flex;
+        gap: 5px;
+        flex-wrap: wrap;
+        margin: 11px 0;
+      }
+      .pill {
+        font-size: 11px;
+        font-weight: 650;
+        border-radius: 4px;
+        padding: 3px 6px;
+        display: inline-block;
+        background: #203044;
+        color: #a1d9f7;
+      }
+      .pill.corroborated {
+        background: #163a27;
+        color: var(--ok);
+      }
+      .pill.uncorroborated {
+        background: #40361b;
+        color: var(--warn);
+      }
+      .pill.unverifiable,
+      .pill.p1,
+      .pill.injection {
+        background: #3f1b29;
+        color: #ff88a0;
+      }
+      .pill.proxy {
+        background: #302143;
+        color: #d7b4fc;
+      }
+      .confidence {
+        font-size: 12px;
+        color: var(--muted);
+        display: flex;
+        justify-content: space-between;
+        margin-top: 12px;
+      }
+      .confidence-bar {
+        height: 5px;
+        background: #26303c;
+        overflow: hidden;
+        border-radius: 4px;
+        margin: 6px 0 12px;
+      }
+      .confidence-bar i {
+        display: block;
+        height: 100%;
+        background: var(--ok);
+      }
+      .evidence {
+        padding: 0;
+        list-style: none;
+        margin: 0;
+      }
+      .evidence li {
+        position: relative;
+        padding-left: 20px;
+        margin: 9px 0;
+        font-size: 15px;
+      }
+      .evidence li::before {
+        content: "✓";
+        color: var(--ok);
+        position: absolute;
+        left: 0;
+      }
+      .evidence li.no::before {
+        content: "×";
+        color: var(--warn);
+      }
+      .evidence .source {
+        color: var(--muted);
+      }
+      .meta {
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 12px;
+      }
+      .response {
+        font-size: 15px;
+        line-height: 1.6;
+        border-top: 1px solid var(--line);
+        padding-top: 11px;
+        margin-top: 12px;
+      }
+      .response p {
+        margin: 7px 0;
+      }
+      .response .key {
+        font: 11px var(--mono);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--drone);
+        display: block;
+      }
+      .response blockquote {
+        margin: 8px 0;
+        padding-left: 10px;
+        border-left: 2px solid #385375;
+        color: #b6c6d9;
+      }
+      .response ul {
+        padding-left: 20px;
+        margin: 6px 0;
+      }
+      details {
+        border-top: 1px solid var(--line);
+        margin-top: 12px;
+        padding-top: 10px;
+      }
+      summary {
+        cursor: pointer;
+        font-size: 14px;
+        color: var(--drone);
+      }
+      .report {
+        margin: 12px 0;
+      }
+      .report .report-meta {
+        color: var(--muted);
+        font: 12px var(--mono);
+      }
+      .report p {
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        margin: 6px 0;
+        font-size: 15px;
+      }
+      .empty {
+        color: var(--muted);
+        font-size: 15px;
+        padding: 12px 0;
+        margin: 0;
+      }
+      .right-column {
+        display: grid;
+        gap: 16px;
+        min-width: 0;
+      }
+      .right-column {
+        height: max(650px, calc(100vh - 350px));
+        grid-template-rows: 1fr 1.15fr 0.85fr;
+      }
+      .right-column > .panel {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+      .right-column .panel-head {
+        flex-shrink: 0;
+      }
+      .feed {
+        flex: 1;
+        min-height: 0;
+        overflow: auto;
+        scrollbar-width: thin;
+        scrollbar-color: #3a4659 transparent;
+      }
+      .sms {
+        padding: 12px;
+        border: 1px solid #254533;
+        border-radius: 9px;
+        background: #10271a;
+        margin-bottom: 10px;
+        font-size: 15px;
+        overflow-wrap: anywhere;
+      }
+      .sms.helper {
+        background: #2d2515;
+        border-color: #584624;
+      }
+      .sms.alert {
+        background: #2b171e;
+        border-color: #562733;
+      }
+      .sms.new {
+        animation: arrive 0.35s ease-out;
+      }
+      .sms .to {
+        font: 12px/1.5 var(--mono);
+        color: #b2c7b8;
+        margin-bottom: 7px;
+      }
+      .sms.helper .to {
+        color: #dac695;
+      }
+      .sms.alert .to {
+        color: #ddb2bb;
+      }
+      .sms p {
+        white-space: pre-wrap;
+        margin: 0;
+      }
+      .activity,
+      .world-log {
+        font: 14px/1.6 var(--mono);
+      }
+      .activity article,
+      .world-log p {
+        padding: 11px 0;
+        margin: 0;
+        border-bottom: 1px solid var(--line);
+        overflow-wrap: anywhere;
+      }
+      .activity article:first-child,
+      .world-log p:first-child {
+        padding-top: 0;
+      }
+      .activity .agent {
+        color: var(--drone);
+        font-weight: 700;
+      }
+      .activity .run {
+        font-size: 12px;
+        color: #a6afbd;
+      }
+      .activity .tools {
+        color: #c9d3df;
+        margin: 5px 0;
+      }
+      .activity .cost {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .activity .failed {
+        border-left: 3px solid var(--bad);
+        padding-left: 10px;
+        color: #ff8ba3;
+      }
+      .queue-body {
+        max-height: calc(100vh - 330px);
+        min-height: 500px;
+        overflow: auto;
+        scrollbar-width: thin;
+        scrollbar-color: #3a4659 transparent;
+      }
+      .demo-guide {
+        border-top: 1px solid var(--line);
+        padding: 14px 24px 22px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .demo-guide b {
+        color: var(--text);
+      }
+      .demo-guide p {
+        margin: 5px 0;
+      }
+      #fire-core,
+      #fire-glow {
+        transition:
+          r 1.2s linear,
+          cx 1.2s linear,
+          cy 1.2s linear;
+      }
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+      [hidden] {
+        display: none !important;
+      }
+      @keyframes arrive {
+        from {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+      @keyframes pulse {
+        to {
+          opacity: 0.25;
+        }
+      }
+      @media (min-width: 1700px) {
+        .metric {
+          flex-basis: 85px;
+        }
+        .metric.hero {
+          flex-basis: 150px;
+        }
+        .layout {
+          gap: 20px;
+        }
+        .queue-body {
+          max-height: calc(100vh - 310px);
+        }
+      }
+      @media (max-width: 1099px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+        .queue-body {
+          max-height: none;
+          min-height: 0;
+        }
+        .right-column {
+          height: auto;
+          grid-template-rows: auto;
+          grid-template-columns: 1fr;
+        }
+        .controls {
+          margin-left: 0;
+          width: 100%;
+        }
+        .controls .tick {
+          margin-left: auto;
+        }
+        #map {
+          max-height: 620px;
+        }
+        .feed {
+          max-height: 450px;
+        }
+        .metric {
+          flex-basis: 120px;
+        }
+      }
+      @media (max-width: 540px) {
+        header {
+          padding: 16px;
+        }
+        .overview {
+          padding: 18px 16px 0;
+        }
+        .layout {
+          padding: 4px 16px 20px;
+        }
+        .controls {
+          gap: 7px;
+        }
+        .controls select {
+          max-width: none;
+          width: 100%;
+        }
+        .tick {
+          font-size: 22px;
+        }
+        .environment {
+          font-size: 10px;
+        }
+        .tagline {
+          font-size: 15px;
+        }
+        .panel-body {
+          padding: 12px;
+        }
+        .panel-head {
+          padding: 13px;
+        }
+        .banner.out {
+          font-size: 17px;
+        }
+        .section-heading {
+          flex-wrap: wrap;
+        }
+        #map {
+          min-height: 260px;
+        }
+        .card {
+          padding: 12px;
+        }
+        .card-header .approve {
+          font-size: 14px;
+          padding: 10px;
+        }
+        .demo-guide {
+          padding: 12px 16px;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation: none !important;
+          transition: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="topline">
+        <h1 class="brand">Dragon<span>fly</span></h1>
+        <span class="environment"
+          >WILDFIRE RESPONSE<br />SIMULATION CONSOLE</span
+        >
+        <div class="controls">
+          <label for="scenario" class="sr-only">Scenario</label
+          ><select id="scenario" disabled>
+            <option>Connecting…</option></select
+          ><button id="reset" disabled>Reset</button
+          ><button id="step" disabled>Step</button
+          ><button id="play" class="primary" disabled>Play</button
+          ><span id="tick" class="tick">t00/—</span>
+        </div>
+      </div>
+      <p class="tagline">
+        Everyone can call for anyone. The machine checks the world, not the
+        person.<br /><strong>A human decides. A neighbor arrives first.</strong>
+      </p>
+    </header>
+    <section class="overview" aria-label="Simulation overview">
+      <div class="section-heading">
+        <span class="eyebrow">People first. Evidence always.</span
+        ><span class="spacer"></span
+        ><span id="connection" class="status" role="status"
+          >Connecting to simulation</span
+        >
+      </div>
+      <div id="error" class="notice" role="alert" hidden></div>
+      <div
+        id="metrics"
+        class="metrics"
+        tabindex="0"
+        aria-label="Mission metrics; scroll horizontally for all metrics"
+      ></div>
+      <div id="banner" class="banner" role="status" hidden></div>
+    </section>
+    <main class="layout">
+      <section class="panel map-panel">
+        <div class="panel-head">
+          <span class="panel-index">01</span>
+          <h2>Live world</h2>
+          <span class="spacer"></span
+          ><span class="mono muted" style="font-size: 12px"
+            >EATON / ALTADENA</span
+          >
+        </div>
+        <div class="panel-body">
+          <p id="scenario-desc" class="map-heading">
+            Waiting for a world snapshot
+          </p>
+          <div class="map-stage">
+            <svg
+              id="map"
+              viewBox="0 0 800 600"
+              role="img"
+              aria-labelledby="map-title map-description"
+            >
+              <title id="map-title">Wildfire response map</title>
+              <desc id="map-description">
+                Projected positions of residents, stations, satellite
+                detections, the fire perimeter and active drones.
+              </desc>
+              <defs>
+                <pattern
+                  id="grid"
+                  width="40"
+                  height="40"
+                  patternUnits="userSpaceOnUse"
+                >
+                  <path
+                    d="M40 0H0V40"
+                    fill="none"
+                    stroke="#253445"
+                    stroke-width=".5"
+                  />
+                </pattern>
+              </defs>
+              <rect width="800" height="600" fill="url(#grid)" />
+              <g id="hazards">
+                <path
+                  id="spread"
+                  fill="#ff5a1f14"
+                  stroke="#ff5a1f66"
+                  stroke-dasharray="5 5"
+                />
+                <circle id="fire-glow" fill="#ff5a1f25" r="0" />
+                <circle
+                  id="fire-core"
+                  fill="#ff5a1f66"
+                  stroke="#ff5a1f"
+                  stroke-width="2"
+                  r="0"
+                />
+              </g>
+              <g id="hotspots"></g>
+              <g id="stations"></g>
+              <g id="residents"></g>
+              <path id="drone-dots" fill="#5ac8fa" opacity=".95">
+                <title>Active drones</title>
+              </path>
+              <g id="compass" transform="translate(720 64)">
+                <circle r="25" fill="#111b26" stroke="#465367" />
+                <path d="M0-19V19M-19 0H19" stroke="#465367" />
+                <text
+                  y="-34"
+                  text-anchor="middle"
+                  fill="#a1a9b6"
+                  font-size="13"
+                >
+                  N
+                </text>
+                <path
+                  id="wind-arrow"
+                  d="M0 17V-17M-5-10 0-17 5-10"
+                  fill="none"
+                  stroke="#ff5a1f"
+                  stroke-width="2.5"
+                />
+                <text
+                  id="wind-label"
+                  y="47"
+                  text-anchor="middle"
+                  fill="#a1a9b6"
+                  font-size="12"
+                ></text>
+              </g>
+            </svg>
+          </div>
+          <div class="legend">
+            <span><i style="background: var(--fire)"></i>Fire</span
+            ><span
+              ><i
+                style="
+                  background: var(--ember);
+                  border-radius: 0;
+                  transform: rotate(45deg);
+                "
+              ></i
+              >Hotspot</span
+            ><span><i style="background: #777"></i>Citizen</span
+            ><span><i style="background: #ff00aa"></i>Reported</span
+            ><span><i style="background: var(--warn)"></i>In the path</span
+            ><span
+              ><i style="background: var(--safe)"></i>Contacted /
+              evacuating</span
+            ><span><i style="background: var(--ok)"></i>Evacuated</span
+            ><span><i style="background: var(--bad)"></i>Overrun</span
+            ><span><i style="background: var(--drone)"></i>Drone</span
+            ><span
+              ><i style="background: white; border-radius: 0"></i>Station</span
+            ><span
+              ><i
+                style="background: transparent; border: 2px solid var(--warn)"
+              ></i
+              >Needs help</span
+            ><span
+              ><i
+                style="background: transparent; border: 2px solid var(--ok)"
+              ></i
+              >Can help</span
+            >
+          </div>
+          <div class="map-note" id="weather">
+            World positions are simulated. One tick = one minute.
+          </div>
+          <div class="mission">
+            <h3>Drone suppression mission</h3>
+            <div id="mission">
+              <p>
+                Fleet staged. A dispatcher must approve before a drone leaves
+                the ground.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section class="panel queue-panel">
+        <div class="panel-head">
+          <span class="panel-index">02</span>
+          <h2>Dispatcher queue</h2>
+          <span class="spacer"></span
+          ><span class="mono muted" style="font-size: 12px">HUMAN GATE</span>
+        </div>
+        <div class="panel-body queue-body">
+          <section class="lane ready">
+            <h3 class="lane-heading">
+              Ready to approve <span id="n-ready" class="count">0</span>
+            </h3>
+            <div id="lane-ready">
+              <p class="empty">Verified incidents will appear here.</p>
+            </div>
+          </section>
+          <section class="lane human">
+            <h3 class="lane-heading">
+              Needs your eyes <span id="n-human" class="count">0</span>
+            </h3>
+            <div id="lane-human">
+              <p class="empty">No incidents waiting for review.</p>
+            </div>
+          </section>
+          <section class="lane approved">
+            <h3 class="lane-heading">
+              Approved <span id="n-approved" class="count">0</span>
+            </h3>
+            <div id="lane-approved">
+              <p class="empty">Nothing sent. No drones launched.</p>
+            </div>
+          </section>
+        </div>
+      </section>
+      <div class="right-column">
+        <section class="panel">
+          <div class="panel-head">
+            <span class="panel-index">03</span>
+            <h2>Simulated phones</h2>
+            <span class="spacer"></span
+            ><span id="message-count" class="count">0</span>
+          </div>
+          <div class="panel-body feed" id="phones">
+            <p class="empty">
+              no messages sent — nothing goes out without Approve
+            </p>
+          </div>
+        </section>
+        <section class="panel">
+          <div class="panel-head">
+            <span class="panel-index">04</span>
+            <h2>Agent activity</h2>
+            <span class="spacer"></span
+            ><span id="run-count" class="count">0</span>
+          </div>
+          <div id="activity" class="panel-body feed activity">
+            <p class="empty">Agents idle. Press Play to receive reports.</p>
+          </div>
+        </section>
+        <section class="panel">
+          <div class="panel-head">
+            <span class="panel-index">05</span>
+            <h2>World log</h2>
+          </div>
+          <div id="log" class="panel-body feed world-log">
+            <p class="empty">Waiting for the first simulation tick.</p>
+          </div>
+        </section>
+      </div>
+    </main>
+    <footer class="demo-guide">
+      <p>
+        <b>Demo:</b> Choose <span class="mono">swarm_500</span> → Play → approve
+        around t6 → watch drops, messages and people saved.
+      </p>
+      <p>
+        Try <span class="mono">false_alarm_night</span> for human review, or
+        <span class="mono">injection</span> to inspect adversarial reports.
+        Approval is always yours.
+      </p>
+    </footer>
+    <script>
+      "use strict";
+      const $ = (selector) => document.querySelector(selector);
+      const SVG_NS = "http://www.w3.org/2000/svg";
+      const state = {
+        data: null,
+        busy: false,
+        polling: false,
+        revision: 0,
+        lastAdvance: Date.now(),
+        activityUntil: 0,
+        connected: false,
+        lastSnapshot: 0,
+        requestError: "",
+        connectionError: "",
+        queueKey: "",
+        activityKey: "",
+        logKey: "",
+        mapKey: "",
+        messageKeys: new Set(),
+        names: new Map(),
+      };
+      const esc = (value) =>
+        String(value ?? "").replace(
+          /[&<>"']/g,
+          (c) =>
+            ({
+              "&": "&amp;",
+              "<": "&lt;",
+              ">": "&gt;",
+              '"': "&quot;",
+              "'": "&#39;",
+            })[c],
+        );
+      const number = (value, fallback = 0) =>
+        Number.isFinite(Number(value)) ? Number(value) : fallback;
+      const money = (value, digits = 4) => "$" + number(value).toFixed(digits);
+      const title = (value) => String(value ?? "").replaceAll("_", " ");
+      const personName = (id) =>
+        state.names.get(id) || id || "Unknown resident";
+      const tick = (value) => "t" + String(value).padStart(2, "0");
+      function svgNode(tag, attrs = {}) {
+        const node = document.createElementNS(SVG_NS, tag);
+        for (const [key, value] of Object.entries(attrs))
+          node.setAttribute(key, String(value));
+        return node;
+      }
+      function tooltip(node, text) {
+        const child = svgNode("title");
+        child.textContent = text;
+        node.appendChild(child);
+        return node;
+      }
+      async function api(path, method = "GET") {
+        const controller = new AbortController();
+        const timer = setTimeout(
+          () => controller.abort(),
+          method === "GET" ? 10000 : 180000,
+        );
+        try {
+          const response = await fetch(path.replace(/^\//, ""), {
+            method,
+            signal: controller.signal,
+            cache: "no-store",
+          });
+          if (!response.ok) {
+            let detail = "";
+            try {
+              const body = await response.json();
+              if (typeof body.detail === "string") detail = body.detail;
+            } catch {}
+            throw new Error(detail || `Request failed (${response.status}).`);
+          }
+          return await response.json();
+        } finally {
+          clearTimeout(timer);
+        }
+      }
+      function showErrors() {
+        $("#error").textContent = state.connectionError || state.requestError;
+        $("#error").hidden = !$("#error").textContent;
+      }
+      function controls() {
+        const d = state.data;
+        const ended = d && d.tick >= d.ticks;
+        $("#reset").disabled = state.busy || !d;
+        $("#scenario").disabled = state.busy || !d;
+        $("#step").disabled = state.busy || !d || d.playing || ended;
+        $("#play").disabled = state.busy || !d || (!d.playing && ended);
+        $("#play").textContent = d?.playing ? "Pause" : "Play";
+        $("#play").title = ended
+          ? "Scenario complete. Reset to run again."
+          : "Toggle simulation playback";
+        document
+          .querySelectorAll("[data-approve]")
+          .forEach((b) => (b.disabled = state.busy));
+        const status = $("#connection");
+        const working =
+          state.busy ||
+          (d?.playing && Date.now() - state.lastAdvance > 2000) ||
+          Date.now() < state.activityUntil;
+        status.className =
+          "status" +
+          (!state.connected ? " offline" : working ? " working" : "");
+        status.textContent = !state.connected
+          ? "Disconnected · reconnecting"
+          : working
+            ? "Agents working…"
+            : ended
+              ? "Scenario complete"
+              : d?.playing
+                ? "Simulation running"
+                : "Simulation paused";
+        showErrors();
+      }
+      // Fit geographic positions with latitude correction. Margins include the fire perimeter.
+      function projector(d) {
+        const points = [...d.citizens, ...d.stations];
+        if (d.drone_base) points.push(d.drone_base);
+        if (d.fire) {
+          const f = d.fire,
+            latRadius = f.radius_m / 111320,
+            lonRadius = latRadius / Math.cos((f.lat * Math.PI) / 180);
+          points.push(
+            { lat: f.lat + latRadius, lon: f.lon + lonRadius },
+            { lat: f.lat - latRadius, lon: f.lon - lonRadius },
+          );
+        }
+        if (!points.length) points.push({ lat: 0, lon: 0 });
+        let minLat = Math.min(...points.map((p) => p.lat)),
+          maxLat = Math.max(...points.map((p) => p.lat)),
+          minLon = Math.min(...points.map((p) => p.lon)),
+          maxLon = Math.max(...points.map((p) => p.lon));
+        const cos = Math.cos((((minLat + maxLat) / 2) * Math.PI) / 180),
+          spanX = Math.max((maxLon - minLon) * cos, 0.002),
+          spanY = Math.max(maxLat - minLat, 0.002),
+          scale = Math.min(680 / spanX, 480 / spanY);
+        const centerLat = (minLat + maxLat) / 2,
+          centerLon = (minLon + maxLon) / 2;
+        return {
+          x: (lon) => 400 + (lon - centerLon) * cos * scale,
+          y: (lat) => 300 - (lat - centerLat) * scale,
+          m: (meters) => (meters / 111320) * scale,
+        };
+      }
+      function drawMap(d) {
+        const key = JSON.stringify([
+          d.tick,
+          d.scenario,
+          d.fire,
+          d.citizens,
+          d.drones,
+          d.hotspots,
+          d.weather,
+        ]);
+        if (key === state.mapKey) return;
+        state.mapKey = key;
+        const P = projector(d);
+        const fire = d.fire && d.fire.radius_m > 0 ? d.fire : null;
+        $("#hazards").setAttribute("visibility", fire ? "visible" : "hidden");
+        if (fire) {
+          const x = P.x(fire.lon),
+            y = P.y(fire.lat),
+            r = P.m(fire.radius_m),
+            reach = r + P.m(d.envelope_m),
+            b = (number(d.spread_bearing) * Math.PI) / 180;
+          const at = (angle) => [
+            x + Math.sin(angle) * reach,
+            y - Math.cos(angle) * reach,
+          ];
+          const left = at(b - 0.87),
+            right = at(b + 0.87),
+            tip = at(b);
+          $("#spread").setAttribute("d", `M${x},${y}L${left}Q${tip} ${right}Z`);
+          for (const [id, radius] of [
+            ["#fire-core", r],
+            ["#fire-glow", r + 7],
+          ]) {
+            const node = $(id);
+            node.setAttribute("cx", x);
+            node.setAttribute("cy", y);
+            node.setAttribute("r", radius);
+            node.style.r = radius + "px";
+          }
+        }
+        const hotspots = document.createDocumentFragment();
+        for (const h of d.hotspots) {
+          const x = P.x(h.lon),
+            y = P.y(h.lat);
+          hotspots.appendChild(
+            tooltip(
+              svgNode("path", {
+                d: `M${x},${y - 6}l6,6 -6,6 -6,-6Z`,
+                fill: "#ffb347",
+              }),
+              `${h.source} · ${tick(h.tick)} · ${h.confidence}`,
+            ),
+          );
+        }
+        $("#hotspots").replaceChildren(hotspots);
+        const stations = document.createDocumentFragment();
+        for (const station of d.stations)
+          stations.appendChild(
+            tooltip(
+              svgNode("rect", {
+                x: P.x(station.lon) - 6,
+                y: P.y(station.lat) - 6,
+                width: 12,
+                height: 12,
+                fill: "#fff",
+              }),
+              station.name,
+            ),
+          );
+        if (d.drone_base)
+          stations.appendChild(
+            tooltip(
+              svgNode("circle", {
+                cx: P.x(d.drone_base.lon),
+                cy: P.y(d.drone_base.lat),
+                r: 14,
+                fill: "none",
+                stroke: "#5ac8fa",
+                "stroke-width": 2,
+                "stroke-dasharray": "4 3",
+              }),
+              "Drone base · " + d.drone_base.name,
+            ),
+          );
+        $("#stations").replaceChildren(stations);
+        const citizens = document.createDocumentFragment();
+        const byId = new Map(d.citizens.map((c) => [c.id, c]));
+        for (const c of d.citizens) {
+          const helper = byId.get(c.helper_id);
+          if (helper)
+            citizens.appendChild(
+              svgNode("line", {
+                x1: P.x(helper.lon),
+                y1: P.y(helper.lat),
+                x2: P.x(c.lon),
+                y2: P.y(c.lat),
+                stroke: "#7ee787",
+                "stroke-width": 1,
+                opacity: 0.5,
+              }),
+            );
+        }
+        const colors = {
+          safe: "#777",
+          in_path: "#ffd166",
+          contacted: "#7ee787",
+          evacuating: "#7ee787",
+          evacuated: "#3ddc84",
+          overrun: "#ff4d6d",
+        };
+        for (const c of d.citizens) {
+          const attrs = {
+            cx: P.x(c.lon),
+            cy: P.y(c.lat),
+            r: 6,
+            fill:
+              c.reported && c.state === "safe"
+                ? "#ff00aa"
+                : colors[c.state] || "#777",
+          };
+          if (c.opt_in !== "none") {
+            attrs.stroke = c.opt_in === "may_need_help" ? "#ffd166" : "#3ddc84";
+            attrs["stroke-width"] = 2;
+          }
+          citizens.appendChild(
+            tooltip(
+              svgNode("circle", attrs),
+              `${c.name} · ${c.opt_in} · ${c.state}`,
+            ),
+          );
+        }
+        $("#residents").replaceChildren(citizens);
+        // Batch all aircraft into a single path: one DOM update, even for a 500-drone swarm.
+        let path = "";
+        let active = 0;
+        for (const drone of d.drones) {
+          if (drone.state === "base") continue;
+          active++;
+          const x = P.x(drone.lon).toFixed(2),
+            y = P.y(drone.lat).toFixed(2);
+          path += `M${x},${y}m-2.5,0a2.5,2.5 0 1,0 5,0a2.5,2.5 0 1,0 -5,0`;
+        }
+        $("#drone-dots").setAttribute("d", path);
+        $("#drone-dots title").textContent = `${active} active drones`;
+        $("#wind-arrow").setAttribute(
+          "transform",
+          `rotate(${number(d.spread_bearing)})`,
+        );
+        $("#wind-arrow").setAttribute(
+          "visibility",
+          d.spread_bearing == null ? "hidden" : "visible",
+        );
+        $("#wind-label").textContent = `${d.weather.wind_kmh} km/h`;
+        $("#weather").textContent =
+          `Wind ${d.weather.wind_kmh} km/h · humidity ${d.weather.rh}% · ${d.weather.temp_c}°C. Simulated world · 1 tick = 1 minute.`;
+        const counts = {};
+        for (const dr of d.drones)
+          counts[dr.state] = (counts[dr.state] || 0) + 1;
+        $("#mission").innerHTML =
+          (d.mission
+            ? `<p><strong>${number(d.mission.drones)} drones</strong> · ${esc(title(d.mission.pattern))} · bearing ${Math.round(d.mission.target_bearing_deg)}°</p><p>${esc(d.mission.rationale)}</p>`
+            : "<p>Fleet staged. A dispatcher must approve before a drone leaves the ground.</p>") +
+          `<div class="mission-counts">${Object.entries(counts)
+            .map(([k, v]) => `<span>${esc(title(k))} ${v}</span>`)
+            .join("")}</div>`;
+      }
+      const metricFields = [
+        ["people_saved", "People saved", "hero"],
+        ["reports", "Reports"],
+        ["incidents", "Incidents"],
+        ["corroborated", "Corroborated"],
+        ["human_review", "Human review"],
+        ["dismissed", "Dismissed", "good"],
+        ["first_corroborated_tick", "First corroborated"],
+        ["people_at_risk", "People at risk"],
+        ["people_overrun", "Overrun"],
+        ["drones_active", "Drones active", "drone"],
+        ["drops", "Drops", "drone"],
+        ["acres_burned", "Acres burned"],
+        ["acres_without_drones", "Acres without drones"],
+        ["cost_usd", "Cost"],
+        ["sessions", "Agent sessions"],
+        ["failed_runs", "Failed runs"],
+      ];
+      function initMetrics() {
+        for (const [key, label, kind] of metricFields) {
+          const card = document.createElement("div");
+          card.className = "metric " + (kind || "");
+          card.id = "metric-" + key;
+          card.innerHTML = `<div class="k">${label}</div><div class="v">—</div>${key === "people_saved" ? "<small>Reached safety</small>" : ""}`;
+          $("#metrics").appendChild(card);
+        }
+      }
+      function drawMetrics(d) {
+        const m = d.metrics;
+        for (const [key, , kind] of metricFields) {
+          const el = $("#metric-" + key);
+          let value = m[key];
+          if (key === "failed_runs" && value == null)
+            value = d.incidents.reduce(
+              (count, i) => count + (i.runs || []).filter((r) => !r.ok).length,
+              0,
+            );
+          if (key === "dismissed") value = 0;
+          const text =
+            key === "first_corroborated_tick"
+              ? value == null
+                ? "—"
+                : tick(value)
+              : key === "cost_usd"
+                ? money(value, 3)
+                : (value ?? "—");
+          el.querySelector(".v").textContent = text;
+          el.className =
+            "metric " +
+            (kind ||
+              (["people_at_risk", "people_overrun", "failed_runs"].includes(
+                key,
+              ) && number(value) > 0
+                ? "bad"
+                : ""));
+        }
+        const banner = $("#banner");
+        banner.hidden = m.contained_tick == null && m.extinguished_tick == null;
+        banner.className = "banner";
+        if (m.extinguished_tick != null) {
+          banner.classList.add("out");
+          banner.textContent = `Fire out at ${tick(m.extinguished_tick)} after ${m.drops} drops · ${m.acres_burned} acres instead of ${m.acres_without_drones}`;
+        } else if (m.contained_tick != null)
+          banner.textContent = `Fire contained at ${tick(m.contained_tick)}, drones outpacing growth`;
+      }
+      function detailList(values) {
+        return (
+          "<ul>" + values.map((x) => `<li>${esc(x)}</li>`).join("") + "</ul>"
+        );
+      }
+      function responseBlock(i) {
+        let out = "";
+        if (i.plan) {
+          const p = i.plan;
+          out = `<section class="response"><span class="key">Prepared response</span><p><strong>${esc(p.station)}</strong><br>${p.distance_km} km · ETA ${p.eta_min} min · evacuate <strong>${esc(p.evacuation_direction)}</strong></p><blockquote>${esc(p.message_to_reporter)}</blockquote>`;
+          if (i.helpers?.assignments?.length)
+            out += `<p><span class="key">Neighbor asks</span>${i.helpers.assignments.map((a) => `${esc(personName(a.helper_id))} → ${esc(personName(a.person_id))}`).join("<br>")}</p>`;
+          if (i.evacuation)
+            out += `<p><span class="key">Evacuation</span>${i.evacuation.orders.length} orders · rally: ${esc(i.evacuation.rally_point)}</p>`;
+          if (i.drone_plan)
+            out += `<p><span class="key">Drone suppression</span><strong>${i.drone_plan.drones} drones</strong> · ${esc(title(i.drone_plan.pattern))} · bearing ${Math.round(i.drone_plan.target_bearing_deg)}°</p>`;
+          if (i.resources)
+            out += `<p><span class="key">Resources</span>${i.resources.apparatus} apparatus${i.resources.mutual_aid ? " + mutual aid" : ""}</p>`;
+          out += `<details data-detail="${esc(i.id)}-outputs"><summary>Agent response details</summary>`;
+          if (i.forecast)
+            out += `<p><span class="key">Spread forecast</span>${esc(i.forecast.rate_class)} · ${i.forecast.spread_bearing_deg}° · ${i.forecast.envelope_m_30min} m in 30 min</p><p>${esc(i.forecast.notes)}</p>`;
+          if (i.perimeter)
+            out += `<p><span class="key">Perimeter estimate</span>${i.perimeter.radius_m} m · ${i.perimeter.hotspot_count} hotspots · ${Math.round(i.perimeter.confidence * 100)}% estimate confidence</p>`;
+          if (i.resources) out += `<p>${esc(i.resources.rationale)}</p>`;
+          if (i.evacuation)
+            out += detailList(
+              i.evacuation.orders.map(
+                (o) =>
+                  `${personName(o.person_id)} → ${o.direction} · ${title(o.mode)}`,
+              ),
+            );
+          if (i.helpers)
+            out += detailList(i.helpers.assignments.map((a) => a.ask_text));
+          if (p.message_to_helpers)
+            out += `<blockquote>${esc(p.message_to_helpers)}</blockquote>`;
+          if (i.notice)
+            out += `<p><span class="key">Public notice</span>${esc(i.notice.text)}</p>`;
+          if (i.drone_plan) out += `<p>${esc(i.drone_plan.rationale)}</p>`;
+          if (i.squads?.length)
+            out += detailList(
+              i.squads.map(
+                (s) =>
+                  `${s.squad_id}: ${s.action} at ${Number(s.waypoint_lat).toFixed(4)}, ${Number(s.waypoint_lon).toFixed(4)}`,
+              ),
+            );
+          out += "</details></section>";
+        }
+        if (i.after_action) {
+          out += `<section class="response"><span class="key">After-action review</span><p>${esc(i.after_action.summary)}</p>`;
+          if (i.after_action.what_worked?.length)
+            out += `<details data-detail="${esc(i.id)}-review"><summary>Review findings</summary><p>What worked</p>${detailList(i.after_action.what_worked)}<p>What to improve</p>${detailList(i.after_action.what_to_improve || [])}</details>`;
+          out += "</section>";
+        }
+        return out;
+      }
+      function card(i, d) {
+        const lane =
+          i.status === "approved"
+            ? "approved"
+            : i.needs_human_review
+              ? "human"
+              : "ready";
+        const v = i.verdict;
+        const reports = d.reports.filter((r) => i.report_ids.includes(r.id));
+        const signals = i.draft?.urgency_signals || [];
+        const confidence = Math.round(
+          Math.max(0, Math.min(1, number(v.confidence))) * 100,
+        );
+        const button =
+          lane === "approved"
+            ? `<span class="pill">approved ${tick(i.approved_tick)}</span>`
+            : `<button class="approve" data-approve="${esc(i.id)}" ${state.busy ? "disabled" : ""}>${lane === "human" ? "Approve anyway" : "Approve"}</button>`;
+        return `<article class="card ${lane}" data-incident="${esc(i.id)}"><div class="card-header"><span class="card-id">${esc(i.id)}</span>${button}</div><div class="pills"><span class="pill ${esc(v.label)}">${esc(v.label)}</span>${i.plan?.priority === 1 ? '<span class="pill p1">priority 1</span>' : ""}${reports.some((r) => r.for_whom === "other") ? '<span class="pill proxy">reported for a neighbor</span>' : ""}${signals.includes("injection_suspected") ? '<span class="pill injection">injection suspected</span>' : ""}</div><div class="confidence"><span>World evidence confidence</span><span>${confidence}%</span></div><div class="confidence-bar" role="meter" aria-label="World evidence confidence" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${confidence}"><i style="width:${confidence}%"></i></div><ul class="evidence">${v.evidence.map((e) => `<li class="${e.supports ? "yes" : "no"}"><span class="source">${esc(e.source)}</span> — ${esc(e.finding)}</li>`).join("") || '<li class="no">No evidence recorded.</li>'}</ul><div class="meta">x${i.corroboration_count} reports · ${esc(signals.join(", ") || "no signals")} · ${i.sessions} sessions · ${money(i.cost_usd)}</div><details data-detail="${esc(i.id)}-reports"><summary>Read ${reports.length} original report${reports.length === 1 ? "" : "s"}</summary>${reports.map((r) => `<div class="report"><div class="report-meta">${tick(r.at_tick)} · ${esc(personName(r.reporter_id))} · ${esc(r.id)}${r.for_whom === "other" ? " · for a neighbor" : ""}</div><p>${esc(r.text)}</p></div>`).join("")}</details>${responseBlock(i)}</article>`;
+      }
+      function drawQueue(d) {
+        const key = JSON.stringify([
+          d.incidents,
+          d.reports,
+          d.citizens.map((c) => [c.id, c.name]),
+        ]);
+        if (key === state.queueKey) return;
+        state.queueKey = key;
+        const open = new Set(
+          [...document.querySelectorAll("details[open]")].map(
+            (el) => el.dataset.detail,
+          ),
+        );
+        const focus = document.activeElement?.dataset.approve;
+        const scroll = $(".queue-body").scrollTop;
+        const lanes = { ready: [], human: [], approved: [] };
+        for (const i of d.incidents)
+          lanes[
+            i.status === "approved"
+              ? "approved"
+              : i.needs_human_review
+                ? "human"
+                : "ready"
+          ].push(i);
+        const empty = {
+          ready:
+            "No corroborated incidents yet. Evidence will move a report here.",
+          human: "No incidents waiting for human review.",
+          approved: "Nothing sent. No drones launched.",
+        };
+        for (const [lane, items] of Object.entries(lanes)) {
+          $("#n-" + lane).textContent = items.length;
+          $("#lane-" + lane).innerHTML =
+            items.map((i) => card(i, d)).join("") ||
+            `<p class="empty">${empty[lane]}</p>`;
+        }
+        for (const details of document.querySelectorAll("details"))
+          details.open = open.has(details.dataset.detail);
+        $(".queue-body").scrollTop = scroll;
+        if (focus) {
+          const target = [...document.querySelectorAll("[data-approve]")].find(
+            (el) => el.dataset.approve === focus,
+          );
+          target?.focus({ preventScroll: true });
+        }
+      }
+      function drawPhones(d) {
+        const host = $("#phones");
+        const fragment = document.createDocumentFragment();
+        let added = false;
+        for (let index = d.outbox.length - 1; index >= 0; index--) {
+          const m = d.outbox[index];
+          const key = JSON.stringify([index, m]);
+          if (state.messageKeys.has(key)) continue;
+          state.messageKeys.add(key);
+          added = true;
+          const el = document.createElement("article");
+          el.className =
+            "sms new " +
+            (["reporter", "helper", "alert"].includes(m.kind)
+              ? m.kind
+              : "reporter");
+          el.innerHTML = `<div class="to">${esc(personName(m.to))} · ${esc(m.kind)} · ${tick(m.tick)} · ${esc(m.incident)}</div><p>${esc(m.text)}</p>`;
+          fragment.appendChild(el);
+        }
+        if (added) {
+          host.querySelector(".empty")?.remove();
+          const scroll = host.scrollTop,
+            previousHeight = host.scrollHeight;
+          host.prepend(fragment);
+          if (scroll > 0)
+            host.scrollTop = scroll + host.scrollHeight - previousHeight;
+        }
+        $("#message-count").textContent = d.outbox.length;
+      }
+      function drawActivity(d) {
+        const key = JSON.stringify(d.activity);
+        if (key !== state.activityKey) {
+          state.activityKey = key;
+          const el = $("#activity"),
+            scroll = el.scrollTop;
+          el.innerHTML =
+            [...d.activity]
+              .reverse()
+              .map(
+                (a) =>
+                  `<article class="${a.ok ? "" : "failed"}"><div>${tick(a.tick)} <span class="agent">${esc(a.agent)}</span> <span class="run">${esc(a.run_id.slice(0, 8))}</span></div>${a.tools?.length ? `<div class="tools">→ ${a.tools.map(esc).join(", ")}</div>` : ""}${a.label ? `<span class="pill ${esc(a.label)}">${esc(a.label)}</span>` : ""}${!a.ok ? `<div>FAILED · ${esc(a.note || "No failure details supplied")}</div>` : ""}<div class="cost">${number(a.ms)}ms ${money(a.cost_usd)}</div></article>`,
+              )
+              .join("") ||
+            '<p class="empty">Agents idle. Press Play to receive reports.</p>';
+          el.scrollTop = scroll;
+        }
+        $("#run-count").textContent = d.metrics.sessions;
+        const logKey = JSON.stringify(d.log);
+        if (logKey !== state.logKey) {
+          state.logKey = logKey;
+          const el = $("#log"),
+            scroll = el.scrollTop;
+          el.innerHTML =
+            [...d.log]
+              .reverse()
+              .map((text) => `<p>${esc(text)}</p>`)
+              .join("") ||
+            '<p class="empty">Waiting for the first simulation tick.</p>';
+          el.scrollTop = scroll;
+        }
+      }
+      function render(d) {
+        const previous = state.data;
+        const reset =
+          !previous ||
+          previous.scenario !== d.scenario ||
+          d.tick < previous.tick;
+        if (reset) {
+          state.queueKey = "";
+          state.mapKey = "";
+          state.activityKey = "";
+          state.logKey = "";
+          state.messageKeys.clear();
+          $("#phones").innerHTML =
+            '<p class="empty">no messages sent — nothing goes out without Approve</p>';
+          state.lastAdvance = Date.now();
+          state.activityUntil = 0;
+        }
+        if (
+          !previous ||
+          previous.tick !== d.tick ||
+          (!previous.playing && d.playing)
+        )
+          state.lastAdvance = Date.now();
+        const last = d.activity.at(-1),
+          oldLast = previous?.activity.at(-1);
+        if (!reset && last && last.run_id !== oldLast?.run_id)
+          state.activityUntil = Date.now() + 1500;
+        state.data = d;
+        state.connected = true;
+        state.lastSnapshot = Date.now();
+        state.connectionError = "";
+        state.names = new Map(d.citizens.map((c) => [c.id, c.name]));
+        const select = $("#scenario");
+        const scenariosKey = d.scenarios.join("|");
+        if (select.dataset.key !== scenariosKey) {
+          select.innerHTML = d.scenarios
+            .map((s) => `<option value="${esc(s)}">${esc(s)}</option>`)
+            .join("");
+          select.dataset.key = scenariosKey;
+        }
+        if (document.activeElement !== select) select.value = d.scenario;
+        $("#scenario-desc").textContent =
+          title(d.scenario) + " · " + d.drones.length + " drones available";
+        $("#tick").textContent = `${tick(d.tick)}/${d.ticks}`;
+        drawMetrics(d);
+        drawMap(d);
+        drawQueue(d);
+        drawPhones(d);
+        drawActivity(d);
+        controls();
+      }
+      async function poll() {
+        if (state.polling) return;
+        state.polling = true;
+        const revision = state.revision;
+        try {
+          const d = await api("/state");
+          if (revision === state.revision) render(d);
+        } catch (e) {
+          if (revision === state.revision) {
+            state.connected = false;
+            state.connectionError =
+              "Unable to reach the simulation. Reconnecting every second.";
+            controls();
+          }
+        } finally {
+          state.polling = false;
+        }
+      }
+      async function action(path) {
+        if (state.busy) return;
+        state.busy = true;
+        state.revision++;
+        state.requestError = "";
+        controls();
+        try {
+          await api(path, "POST");
+          state.revision++;
+          if (path.startsWith("/reset/")) state.data = null;
+          render(await api("/state"));
+        } catch (e) {
+          state.requestError =
+            e.name === "AbortError"
+              ? "The request timed out. Check the current state before trying again."
+              : e.message;
+          if (state.data) $("#scenario").value = state.data.scenario;
+        } finally {
+          state.busy = false;
+          controls();
+        }
+      }
+      $("#play").onclick = () => action("/play");
+      $("#step").onclick = () => action("/step");
+      $("#reset").onclick = () =>
+        action("/reset/" + encodeURIComponent($("#scenario").value));
+      $("#scenario").onchange = () =>
+        action("/reset/" + encodeURIComponent($("#scenario").value));
+      document.querySelector(".queue-body").onclick = (event) => {
+        const button = event.target.closest("[data-approve]");
+        if (button)
+          action("/approve/" + encodeURIComponent(button.dataset.approve));
+      };
+      initMetrics();
+      poll();
+      setInterval(poll, 1000);
+      setInterval(controls, 500);
+    </script>
+  </body>
 </html>
